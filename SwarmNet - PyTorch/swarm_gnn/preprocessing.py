@@ -8,7 +8,7 @@ import pandas
 from sklearn.preprocessing import MinMaxScaler
 
 
-def preprocess(data):
+def preprocess_csv(data):
     # TODO this is a test function using existing data. Throws away all frames without equal number of agents.
     data_list = []
     steps = data["Time"].unique()
@@ -30,4 +30,8 @@ def preprocess(data):
         data_list.append(step_data)
     data_list = numpy.array(data_list, dtype=float)
 
-    return data_list
+
+def preprocess_json(data):
+    data = numpy.array(data)
+
+    return data

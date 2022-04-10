@@ -7,13 +7,13 @@ import pandas
 import torch
 from torch.utils.data import Dataset
 
-from swarm_gnn.preprocessing import preprocess
+from swarm_gnn.preprocessing import preprocess_csv, preprocess_json
 
 
 # Retrieve data
 def retrieve_dataset(config, scaler):
     train_dataset = SimulationDataset(config.train_path, False, scaler, config)
-    test_dataset = None
+    test_dataset = SimulationDataset(config.test_path, True, scaler, config)
 
     return train_dataset, test_dataset
 
@@ -36,10 +36,13 @@ class SimulationDataset(Dataset):
         #                     [[11, 12], [21, 21], [-4, -5]]
         #                     ], dtype=float)
         prediction_steps = config.prediction_steps
-        data = pandas.read_csv(path)
-        data = preprocess(data)
+        data = self.load(path)
+        data = numpy.nan_to_num(data)
         # Data reshaped to  [time_step, agent, state]
-        data = numpy.swapaxes(data, 0, 1)
+        # data = numpy.swapaxes(data, 0, 1)
+        #data = data[45:]
+        if testData is True:
+            data = data[:, :50, ]
         if config.truth_available:
             truth_ends_at = data.shape[1] - prediction_steps + 1
             # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size
@@ -54,9 +57,25 @@ class SimulationDataset(Dataset):
         # If using scikit scaler, scale data (training data uses specified scaler, testing data uses training scaler)
         self.X = torch.tensor(self.data_x, requires_grad=True)
         self.y = torch.tensor(self.data_y)
+        # print(self.y[0])
 
     def __len__(self):
         return len(self.X)
 
     def __getitem__(self, index):
         return self.X[index], self.y[index]
+
+    def load(self, path):
+        data = None
+        if path.endswith('.csv'):
+            data = pandas.read_csv(path)
+            data = preprocess_csv(data)
+        elif path.endswith('.json'):
+            f = open(path)
+            data = json.load(f)
+            data = preprocess_json(data)
+
+        # Open with appropriate library
+        # Preprocess
+
+        return data

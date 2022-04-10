@@ -22,7 +22,7 @@ class SwarmNet(nn.Module):
         self.node_decoder_mlp = nn.Linear(32, agent_state_vector_length)
         self.relu = nn.ReLU()
         self.scaler = None
-        self.highest_test_score = 0
+        self.lowest_mse = 999999999999
 
     def conv_1d(self, x):
         # Condense by agent individually. Now only requires set-length state vector as input while agent numbers can
@@ -54,8 +54,11 @@ class SwarmNet(nn.Module):
     def graph_conv(self, condensed_steps):
         predictions = []
         # For every condensed step
+        steps = 0
         for step in condensed_steps:
             updated_nodes = []
+            steps += 1
+            # print(steps)
             # For every node
             for i in range(0, len(step)):
                 node_i = step[i]

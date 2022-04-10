@@ -1,3 +1,4 @@
+import json
 import multiprocessing
 import os
 
@@ -25,8 +26,7 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
 
         # Forward pass
         y_pred = model(X.float())
-        y_pred_detach = y_pred.cpu().detach()
-        loss = loss_fcn(y_pred.float(), y.float())
+        loss = loss_fcn(y_pred, y.float())
         truths.append(y.numpy())
         # if batch % 10 == 0:
         #     print(loss)
@@ -34,6 +34,7 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
         # Backward pass
         loss.backward()
         optimizer.step()
+        y_pred_detach = y_pred.cpu().detach()
         predictions.append(y_pred_detach.tolist())
 
         # Store losses for epoch
@@ -81,6 +82,8 @@ def test(epoch, model, dataset, loss_fcn, config):
     for batch, (X, y) in enumerate(dataset):
         X = X.to(device)
         y_pred = model(X.float()).cpu().detach()
+        print(y[0])
+        print(y_pred[0])
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
@@ -89,9 +92,9 @@ def test(epoch, model, dataset, loss_fcn, config):
     predictions = numpy.concatenate(predictions)
     truths = numpy.concatenate(truths)
     # print(epoch)
-    metrics = utils.metrics(predictions, truths)
+    # metrics = utils.metrics(predictions, truths)
 
-    return losses, metrics, predictions, truths
+    return losses, predictions
 
 
 def train_mode(config):
@@ -113,7 +116,7 @@ def train_mode(config):
     train_loader = DataLoader(train_set, batch_size=config.batch_size, sampler=train_sampler)
 
     # # Test loader
-    # test_loader = DataLoader(test_set, batch_size=config.batch_size)
+    test_loader = DataLoader(test_set, batch_size=config.batch_size)
 
     # Initialize the model
     if config.load_train is False:
@@ -132,11 +135,12 @@ def train_mode(config):
 
     # Initialize the loss
     loss_fcn = retrieve_loss(config.loss_name)
-    highest_f1 = model.highest_test_score
+    lowest_mse = model.lowest_mse
     model_path = config.model_save_path
     epochs_low_loss = 0
     last_val_loss = 0
     last_test_loss = 0
+    save_loc = os.path.join(os.getcwd(), "model.pkl")
 
     # Epoch Training loop
     for epoch in range(config.epochs):
@@ -150,9 +154,16 @@ def train_mode(config):
         # loss_validate = numpy.mean(loss_validate)
         # print(loss_validate)
         #
-        # # Test for
-        # loss_test, metrics_test, predictions, truths = test(epoch, model, test_loader, loss_fcn, config)
-        # loss_test = numpy.mean(loss_test)
+        # Test for
+        loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
+        loss_test = numpy.mean(loss_test)
+        print(loss_test)
+        if loss_test < lowest_mse:
+            print("New lowest MSE, saving model")
+            lowest_mse = loss_test
+            model.lowest_mse = lowest_mse
+            torch.save(model, save_loc)
+            # plotVis(test_set.data, predictions, truths)
         # f1 = metrics_test[1]
         # if f1 > highest_f1:
         #     print("New highest f1 score, saving model")
@@ -180,12 +191,16 @@ def test_mode(config):
     test_dataset = SimulationDataset(config.test_path, True, model.scaler, config)
     test_loader = DataLoader(test_dataset, batch_size=config.batch_size)
     loss_fcn = retrieve_loss(config.loss_name)
-    loss_test, metrics_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
+    loss_test, predictions = test(0, model, test_loader, loss_fcn, config)
+    print(numpy.mean(loss_test))
+    predictions_json = json.dumps(predictions.tolist())
+    with open('predictions.json', 'w') as outfile:
+        json.dump(predictions_json, outfile)
 
 
 def main():
     # Initialize the config class
-    config_file = os.path.join(os.getcwd(), "configs", "config.yaml")
+    config_file = os.path.join(os.getcwd(), 'configs', 'config.yaml')
     config = ExperimentConfig(config_file)
 
     if config.mode == "train":

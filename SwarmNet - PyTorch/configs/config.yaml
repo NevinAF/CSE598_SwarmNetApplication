@@ -1,7 +1,10 @@
+general:
+  prediction_steps: 1
+
 train:
   n_epochs: 20000000
   batch_size: 100
-  data_path: ""
+  data_path: 'C:\Users\ahard_000\Documents\ASU stuff\SwarmData.json'
   loss: "mse"
   optimizer: "adam"
   env_width: 1400
@@ -10,7 +13,7 @@ train:
   sample_size: "max"
 
 test:
-  data_path: ""
+  data_path: 'C:\Users\ahard_000\Documents\ASU stuff\SwarmData_2.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -18,10 +21,10 @@ test:
 
 model:
   name: "SwarmNet"
-  save_path: ""
+  save_path: 'C:\Users\ahard_000\Documents\ASU stuff'
   save_strategy: ""
   # Train model or test existing model
-  mode: "train"
+  mode: "test"
   # Create new model for training or train existing model
   load_train: False
-  load_path: ""
+  load_path: 'C:\Users\ahard_000\Documents\ASU stuff\model_test.pkl'
