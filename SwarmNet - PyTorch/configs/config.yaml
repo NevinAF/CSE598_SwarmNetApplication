@@ -1,0 +1,27 @@
+train:
+  n_epochs: 20000000
+  batch_size: 100
+  data_path: "/Users/adam/Documents/PycharmProjects/traject-ml/Samples/492_avg_pos_sample1.csv"
+  loss: "mse"
+  optimizer: "adam"
+  env_width: 1400
+  env_height: 1000
+  add_noise: False
+  sample_size: "max"
+
+test:
+  data_path: "/Users/adam/Documents/PycharmProjects/traject-ml/Samples/58_avg_sample1.csv"
+  env_width: 2550
+  env_height: 1650
+  truth_available: True
+  add_noise: False
+
+model:
+  name: "SwarmNet"
+  save_path: "/Users/adam/Documents/PycharmProjects/traject-ml/models/torch_model.pkl"
+  save_strategy: ""
+  # Train model or test existing model
+  mode: "train"
+  # Create new model for training or train existing model
+  load_train: False
+  load_path: "/Users/adam/Documents/PycharmProjects/traject-ml/models/torch_model.pkl"

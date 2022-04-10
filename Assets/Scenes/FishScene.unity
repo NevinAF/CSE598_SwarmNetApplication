@@ -19179,10 +19179,10 @@ MonoBehaviour:
   flockCount: 50
   velocityMultiplier: 1
   maxVelocity: 2.5
-  neighborRadius: 5
-  avoidanceRadiusMultiplier: 0.3
-  obstacleAvoidanceRadius: 6
-  stayWithinRadius: 14
+  neighborRadius: 3
+  avoidanceRadiusMultiplier: 0
+  obstacleAvoidanceRadius: 2
+  stayWithinRadius: 30
   followToRadius: 3
   smoothFollow: 0
   useTags: 0
@@ -19190,10 +19190,10 @@ MonoBehaviour:
   respectDiscriminators: 1
   ObsticleLayer:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 256
   FishLayer:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 1
   captureRate: 0.2
 --- !u!4 &984941779
 Transform:
