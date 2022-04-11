@@ -15,6 +15,7 @@ class ExperimentConfig:
         self.sample_size = config["train"]["sample_size"]
         # Add noise to training data
         self.add_noise_train = config["train"]["add_noise"]
+        self.curriculum = config["train"]["curriculum"]
 
         # Location of test data
         self.test_path = config["test"]["data_path"]

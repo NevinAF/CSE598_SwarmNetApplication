@@ -20,13 +20,19 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
     loss_list = []
     predictions = []
     truths = []
+    if config.curriculum is True:
+        if 100 < epoch < 200 and config.prediction_steps < 2:
+            config.prediction_steps = 2
+            dataset.dataset
+
     for batch, (X, y) in enumerate(dataset):
         optimizer.zero_grad()
         X = X.to(device)
 
         # Forward pass
-        y_pred = model(X.float())
+        y_pred = model(X.float(), config.prediction_steps)
         loss = loss_fcn(y_pred, y.float())
+        truth_list = y_pred.tolist()
         truths.append(y.numpy())
         # if batch % 10 == 0:
         #     print(loss)
@@ -81,7 +87,7 @@ def test(epoch, model, dataset, loss_fcn, config):
     truths = []
     for batch, (X, y) in enumerate(dataset):
         X = X.to(device)
-        y_pred = model(X.float()).cpu().detach()
+        y_pred = model(X.float(), config.prediction_steps).cpu().detach()
         print(y[0])
         print(y_pred[0])
         if config.truth_available:
@@ -155,14 +161,14 @@ def train_mode(config):
         # print(loss_validate)
         #
         # Test for
-        loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
-        loss_test = numpy.mean(loss_test)
-        print(loss_test)
-        if loss_test < lowest_mse:
-            print("New lowest MSE, saving model")
-            lowest_mse = loss_test
-            model.lowest_mse = lowest_mse
-            torch.save(model, save_loc)
+        # loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
+        # loss_test = numpy.mean(loss_test)
+        # print(loss_test)
+        # if loss_test < lowest_mse:
+        #     print("New lowest MSE, saving model")
+        #     lowest_mse = loss_test
+        #     model.lowest_mse = lowest_mse
+        #     torch.save(model, save_loc)
             # plotVis(test_set.data, predictions, truths)
         # f1 = metrics_test[1]
         # if f1 > highest_f1:

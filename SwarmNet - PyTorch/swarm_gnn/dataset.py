@@ -23,30 +23,36 @@ class SimulationDataset(Dataset):
     def __init__(self, path, testData=False, scaler=None,
                  config=None, mode=1):
         super().__init__()
-        # data = numpy.array([[[0, 1], [9, 9], [8, 7]],
-        #                     [[1, 2], [10, 10], [7, 6]],
-        #                     [[2, 3], [11, 11], [6, 5]],
-        #                     [[3, 4], [12, 12], [5, 4]],
-        #                     [[4, 5], [13, 13], [4, 3]],
-        #                     [[5, 6], [14, 14], [3, 2]],
-        #                     [[5, 6], [15, 15], [2, 1]],
-        #                     [[6, 7], [16, 16], [1, 0]],
-        #                     [[7, 8], [17, 17], [0, -1]],
-        #                     [[9, 10], [19, 19], [-2, -3]],
-        #                     [[11, 12], [21, 21], [-4, -5]]
-        #                     ], dtype=float)
-        prediction_steps = config.prediction_steps
-        data = self.load(path)
-        data = numpy.nan_to_num(data)
+        data = numpy.array([[[0, 1], [9, 9], [8, 7]],
+                            [[1, 2], [10, 10], [7, 6]],
+                            [[2, 3], [11, 11], [6, 5]],
+                            [[3, 4], [12, 12], [5, 4]],
+                            [[4, 5], [13, 13], [4, 3]],
+                            [[5, 6], [14, 14], [3, 2]],
+                            [[5, 6], [15, 15], [2, 1]],
+                            [[6, 7], [16, 16], [1, 0]],
+                            [[7, 8], [17, 17], [0, -1]],
+                            [[9, 10], [19, 19], [-2, -3]],
+                            [[11, 12], [21, 21], [-4, -5]]
+                            ], dtype=float)
+        if config.curriculum is False:
+            prediction_steps = config.prediction_steps
+        else:
+            prediction_steps = 1
+        # data = self.load(path)
+        # data = numpy.nan_to_num(data)
         # Data reshaped to  [time_step, agent, state]
-        # data = numpy.swapaxes(data, 0, 1)
-        #data = data[45:]
+        data = numpy.swapaxes(data, 0, 1)
+        # data = data[45:]
         if testData is True:
             data = data[:, :50, ]
         if config.truth_available:
             truth_ends_at = data.shape[1] - prediction_steps + 1
             # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size
-            self.data_y = data[:, 7:truth_ends_at, :]
+            # Shape = [agent, condensed time-step, prediction step, state-vector]
+            self.data_y = numpy.zeros([data.shape[0], truth_ends_at - 7, prediction_steps, data.shape[2]])
+            for i in range(0, prediction_steps):
+                self.data_y[:, :, i, :] = data[:, 7 + i:truth_ends_at + i, :]
             # Don't want to predict on time-steps where truth no longer available
             self.data_x = data[:, 0:truth_ends_at - 1, :]
         else:
