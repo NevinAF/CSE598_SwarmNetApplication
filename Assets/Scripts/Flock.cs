@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json;
 using UnityEngine;
 using static Feesh;
 
@@ -103,7 +102,7 @@ public class Flock : MonoBehaviour
 				using (StreamReader r = new StreamReader(JSON_PATH))
 				{
 					string json = r.ReadToEnd();
-					pTimeline = JsonConvert.DeserializeObject<float[][][]>(json);
+					pTimeline = JsonUtility.FromJson<float[][][]>(json);
 				}
 
 				if (pTimeline.Length != flockCount)
