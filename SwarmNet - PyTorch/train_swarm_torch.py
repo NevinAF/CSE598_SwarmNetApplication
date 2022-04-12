@@ -161,7 +161,6 @@ def train_mode(config):
 
     # Initialize the loss
     loss_fcn = retrieve_loss(config.loss_name)
-    lowest_mse = model.lowest_mse
     model_path = config.model_save_path
     epochs_low_loss_diff = 0
     last_val_loss = 999999
@@ -170,6 +169,7 @@ def train_mode(config):
 
     # Epoch Training loop
     for epoch in range(config.epochs):
+        lowest_mse = model.lowest_mse_this_horizon
         time_start = time.time()
         print(epoch)
         # Train for one epoch
@@ -190,10 +190,11 @@ def train_mode(config):
         time_end = time.time()
         time_taken = time_end - time_start
         print(time_taken)
-        if loss_test < lowest_mse and (config.curriculum is False or config.prediction_steps >= 10):
+        # TODO save different model per horizon
+        if loss_test < lowest_mse:
             print("New lowest MSE, saving model")
             lowest_mse = loss_test
-            model.lowest_mse = lowest_mse
+            model.lowest_mse_this_horizon = lowest_mse
             torch.save(model, save_loc)
             # plotVis(test_set.data, predictions, truths)
         if loss_diff <= 0.01:
@@ -210,6 +211,8 @@ def train_mode(config):
                 if config.prediction_steps < 10:
                     train_set, test_set, train_loader, test_loader, validation_loader = \
                         update_curriculum(train_set, test_set, config, num_workers)
+                    model.predictions_trained_to += 1
+                    model.lowest_mse_this_horizon = 999999
 
         last_val_loss = loss_train
 
