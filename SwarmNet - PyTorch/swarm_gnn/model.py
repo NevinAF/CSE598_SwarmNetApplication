@@ -2,6 +2,10 @@ import numpy
 import torch
 from torch import nn
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# TODO testing
+device = 'cpu' if torch.cuda.is_available() else 'cpu'
+
 
 def retrieve_model(path):
     model = torch.load(path)
@@ -85,6 +89,7 @@ class SwarmNet(nn.Module):
             for i in range(0, len(step)):
                 node_i = step[i]
                 agg_edge = torch.zeros(len(node_i))
+                agg_edge = agg_edge.to(device)
                 # For every other node
                 for j in range(0, len(step)):
                     # Ignore node if same node
@@ -147,6 +152,7 @@ class SwarmNet(nn.Module):
             extend_pred_list = numpy.zeros([predict.size(0), predict.size(1), 7, predict.size(2)])
             test_list = numpy.array(condensed_steps.tolist())
             extend_pred = torch.tensor(extend_pred_list)
+            extend_pred = extend_pred.to(device)
             if predict_steps > 1:
                 # On first prediction, reshape to keep track of original window that was condensed
                 if i == 0:

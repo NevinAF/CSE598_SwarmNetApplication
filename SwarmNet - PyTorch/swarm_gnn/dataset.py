@@ -7,7 +7,7 @@ import pandas
 import torch
 from torch.utils.data import Dataset
 
-from swarm_gnn.preprocessing import preprocess_csv, preprocess_json
+from swarm_gnn.preprocessing import preprocess_csv, preprocess_json, preprocess_predict_steps
 
 
 # Retrieve data
@@ -23,45 +23,33 @@ class SimulationDataset(Dataset):
     def __init__(self, path, testData=False, scaler=None,
                  config=None, mode=1):
         super().__init__()
-        data = numpy.array([[[0, 1], [9, 9], [8, 7]],
-                            [[1, 2], [10, 10], [7, 6]],
-                            [[2, 3], [11, 11], [6, 5]],
-                            [[3, 4], [12, 12], [5, 4]],
-                            [[4, 5], [13, 13], [4, 3]],
-                            [[5, 6], [14, 14], [3, 2]],
-                            [[5, 6], [15, 15], [2, 1]],
-                            [[6, 7], [16, 16], [1, 0]],
-                            [[7, 8], [17, 17], [0, -1]],
-                            [[9, 10], [19, 19], [-2, -3]],
-                            [[11, 12], [21, 21], [-4, -5]]
-                            ], dtype=float)
+        # self.original_data = numpy.array([[[0, 1], [9, 9], [8, 7]],
+        #                                   [[1, 2], [10, 10], [7, 6]],
+        #                                   [[2, 3], [11, 11], [6, 5]],
+        #                                   [[3, 4], [12, 12], [5, 4]],
+        #                                   [[4, 5], [13, 13], [4, 3]],
+        #                                   [[5, 6], [14, 14], [3, 2]],
+        #                                   [[5, 6], [15, 15], [2, 1]],
+        #                                   [[6, 7], [16, 16], [1, 0]],
+        #                                   [[7, 8], [17, 17], [0, -1]],
+        #                                   [[9, 10], [19, 19], [-2, -3]],
+        #                                   [[11, 12], [21, 21], [-4, -5]]
+        #                                   ], dtype=float)
         if config.curriculum is False:
             prediction_steps = config.prediction_steps
         else:
             prediction_steps = 1
-        # data = self.load(path)
-        # data = numpy.nan_to_num(data)
+        self.original_data = self.load(path)
+        self.original_data = numpy.nan_to_num(self.original_data)
         # Data reshaped to  [time_step, agent, state]
-        data = numpy.swapaxes(data, 0, 1)
+        # self.original_data = numpy.swapaxes(self.original_data, 0, 1)
         # data = data[45:]
-        if testData is True:
-            data = data[:, :50, ]
-        if config.truth_available:
-            truth_ends_at = data.shape[1] - prediction_steps + 1
-            # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size
-            # Shape = [agent, condensed time-step, prediction step, state-vector]
-            self.data_y = numpy.zeros([data.shape[0], truth_ends_at - 7, prediction_steps, data.shape[2]])
-            for i in range(0, prediction_steps):
-                self.data_y[:, :, i, :] = data[:, 7 + i:truth_ends_at + i, :]
-            # Don't want to predict on time-steps where truth no longer available
-            self.data_x = data[:, 0:truth_ends_at - 1, :]
-        else:
-            truth_ends_at = None
-        self.state_length = data.shape[2]
+        self.data_x, self.data_y, self.state_length = preprocess_predict_steps(self.original_data, testData,
+                                                                               prediction_steps, config.truth_available)
         # Scaler incorporated but probably will not be used for some time
         self.scaler = scaler
         # If using scikit scaler, scale data (training data uses specified scaler, testing data uses training scaler)
-        self.X = torch.tensor(self.data_x, requires_grad=True)
+        self.X = torch.tensor(self.data_x)
         self.y = torch.tensor(self.data_y)
         # print(self.y[0])
 
@@ -69,6 +57,8 @@ class SimulationDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, index):
+        # TODO Idea: keep original data shape of time-steps per agent allowing for better batching.
+        #   Reshape data for easy accessing of relevant truth on returned values
         return self.X[index], self.y[index]
 
     def load(self, path):
