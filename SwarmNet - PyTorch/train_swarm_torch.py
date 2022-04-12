@@ -126,6 +126,22 @@ def train_mode(config):
     else:
         num_workers = multiprocessing.cpu_count()
 
+    # Initialize the model
+    if config.load_train is False:
+        # TODO filled in placeholders for testing
+        time_steps = 2000
+        model = SwarmNet(train_set.state_length)
+    elif config.model_load_path is not None:
+        model = retrieve_model(config.model_load_path)
+        train_set.prediction_steps = model.predictions_trained_to
+        test_set.prediction_steps = model.predictions_trained_to
+
+    else:
+        print("Need model path if training existing model. Either provide path or set load_train to False")
+        exit(0)
+    model.scaler = train_set.scaler
+    model = model.to(device)
+
     # Validation loader
     validation_split = 0
     dataset_length = len(train_set)
@@ -144,18 +160,7 @@ def train_mode(config):
     # # Test loader
     test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
 
-    # Initialize the model
-    if config.load_train is False:
-        # TODO filled in placeholders for testing
-        time_steps = 2000
-        model = SwarmNet(train_set.state_length)
-    elif config.model_load_path is not None:
-        model = retrieve_model(config.model_load_path)
-    else:
-        print("Need model path if training existing model. Either provide path or set load_train to False")
-        exit(0)
-    model.scaler = train_set.scaler
-    model = model.to(device)
+
     optimizer_opts = {"lr": 1e-1, "betas": [0.9, 0.999], "eps": 1e-8, "weight_decay": 1e-5}
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
