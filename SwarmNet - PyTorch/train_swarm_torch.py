@@ -1,6 +1,7 @@
 import json
 import multiprocessing
 import os
+import time
 
 import numpy
 import torch
@@ -25,13 +26,17 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
     truths = []
 
     for batch, (X, y) in enumerate(dataset):
+        if X.shape[0] < 7:
+            continue
         optimizer.zero_grad()
         X = X.to(device)
+        y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
 
         # Forward pass
         y_pred = model(X.float(), config.prediction_steps)
         test = y_pred.tolist()
+        test2 = y.float().tolist()
         loss = loss_fcn(y_pred, y.float())
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
@@ -60,8 +65,10 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
     predictions = []
     truths = []
     for batch, (X, y) in enumerate(dataset):
-        optimizer.zero_grad()
+        if X.shape[0] < 7:
+            continue
         X = X.to(device)
+        y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
 
         # Forward pass
@@ -89,11 +96,14 @@ def test(epoch, model, dataset, loss_fcn, config):
     predictions = []
     truths = []
     for batch, (X, y) in enumerate(dataset):
+        if X.shape[0] < 7:
+            continue
         X = X.to(device)
+        y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
         y_pred = model(X.float(), config.prediction_steps).cpu().detach()
-        print(y[0][0])
-        print(y_pred[0][0])
+        # print(y[0][0])
+        # print(y_pred[0][0])
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
@@ -104,7 +114,7 @@ def test(epoch, model, dataset, loss_fcn, config):
     # print(epoch)
     # metrics = utils.metrics(predictions, truths)
 
-    return losses, predictions
+    return losses, predictions, truths
 
 
 def train_mode(config):
@@ -123,11 +133,15 @@ def train_mode(config):
     # Train loader
     train_index = list(set(indices) - set(validation_index))
     train_sampler = SequentialSampler(train_index)
+    if torch.cuda.is_available():
+        num_workers = torch.cuda.device_count()
+    else:
+        num_workers = multiprocessing.cpu_count()
     train_loader = DataLoader(train_set, batch_size=config.batch_size,
-                              sampler=train_sampler)  # , num_workers=torch.cuda.device_count())
+                              sampler=train_sampler, num_workers=num_workers)
 
     # # Test loader
-    test_loader = DataLoader(test_set, batch_size=config.batch_size)
+    test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
 
     # Initialize the model
     if config.load_train is False:
@@ -155,14 +169,16 @@ def train_mode(config):
 
     # Epoch Training loop
     for epoch in range(config.epochs):
+        time_start = time.time()
         print(epoch)
         # Train for one epoch
         loss_train = train(epoch, model, train_loader, optimizer, loss_fcn, config)
         loss_train = numpy.mean(loss_train)
+        print(loss_train)
         loss_diff = abs(loss_train - last_val_loss)
         last_val_loss = loss_train
-        print("diff:")
-        print(loss_diff)
+        # print("diff:")
+        # print(loss_diff)
         # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
         # loss_validate = numpy.mean(loss_validate)
         # print(loss_validate)
@@ -170,7 +186,7 @@ def train_mode(config):
         # Test for
         loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
         loss_test = numpy.mean(loss_test)
-        if loss_test < lowest_mse and config.prediction_steps >= 10:
+        if loss_test < lowest_mse and (config.curriculum is False or config.prediction_steps >= 10):
             print("New lowest MSE, saving model")
             lowest_mse = loss_test
             model.lowest_mse = lowest_mse
@@ -183,24 +199,28 @@ def train_mode(config):
         if epochs_low_loss > 2:
             epochs_low_loss = 0
             last_val_loss = 999999
-            print("--------------------------UPDATING CURRICULUM--------------------------")
             if config.curriculum is True:
+                print("--------------------------UPDATING CURRICULUM--------------------------")
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
                 if config.prediction_steps < 10:
-                    config.prediction_steps += 1
+                    train_loader.dataset.prediction_steps += 1
+                    test_loader.dataset.prediction_steps += 1
                     train_loader.dataset.data_x, train_loader.dataset.data_y, train_loader.dataset.state_length = \
-                        preprocess_predict_steps(train_loader.dataset.original_data, False, config.prediction_steps,
+                        preprocess_predict_steps(train_loader.dataset.original_data, False,
+                                                 train_loader.dataset.prediction_steps,
                                                  config.truth_available)
                     train_loader.dataset.X = torch.tensor(train_loader.dataset.data_x)
                     train_loader.dataset.y = torch.tensor(train_loader.dataset.data_y)
                     test_loader.dataset.data_x, test_loader.dataset.data_y, test_loader.dataset.state_length = \
-                        preprocess_predict_steps(test_loader.dataset.original_data, True, config.prediction_steps,
+                        preprocess_predict_steps(test_loader.dataset.original_data, True,
+                                                 train_loader.dataset.prediction_steps,
                                                  config.truth_available)
                     test_loader.dataset.X = torch.tensor(test_loader.dataset.data_x)
                     test_loader.dataset.y = torch.tensor(test_loader.dataset.data_y)
 
-        print(loss_train)
-
+        time_end = time.time()
+        time_taken = time_end - time_start
+        print(time_taken)
 
         # f1 = metrics_test[1]
         # if f1 > highest_f1:
@@ -229,7 +249,9 @@ def test_mode(config):
     test_dataset = SimulationDataset(config.test_path, True, model.scaler, config)
     test_loader = DataLoader(test_dataset, batch_size=config.batch_size)
     loss_fcn = retrieve_loss(config.loss_name)
-    loss_test, predictions = test(0, model, test_loader, loss_fcn, config)
+    loss_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
+    predictions = numpy.swapaxes(predictions, 0, 1)
+    truths = numpy.swapaxes(truths, 0, 1)
     print(numpy.mean(loss_test))
     predictions_json = json.dumps(predictions.tolist())
     with open('predictions.json', 'w') as outfile:

@@ -47,11 +47,15 @@ def preprocess_predict_steps(data, is_test_data, steps, truth_available):
         truth_ends_at = data.shape[1] - steps + 1
         # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size
         # Shape = [agent, condensed time-step, prediction step, state-vector]
-        data_y = numpy.zeros([data.shape[0], truth_ends_at - 7, steps, data.shape[2]])
-        for i in range(0, steps):
-            data_y[:, :, i, :] = data[:, 7 + i:truth_ends_at + i, :]
         # Don't want to predict on time-steps where truth no longer available
         data_x = data[:, 0:truth_ends_at - 1, :]
+        data_y = numpy.zeros([data.shape[0], data_x.shape[1], steps, data.shape[2]])
+        for i in range(0, steps):
+            data_y[:, 6:, i, :] = data[:, 7 + i:truth_ends_at + i, :]
+        data_x = numpy.swapaxes(data_x, 0, 1)
+        # Shape [step, agent, predicted step, state] e.g. [0][1][0][0] is the 1-step x prediction for agent 1 at \
+        #   time-step 0 (6)
+        data_y = numpy.swapaxes(data_y, 0, 1)
     else:
         truth_ends_at = None
     state_length = data.shape[2]

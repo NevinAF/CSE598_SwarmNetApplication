@@ -117,7 +117,7 @@ class SwarmNet(nn.Module):
         predictions = torch.stack(predictions)
         return predictions
 
-    def decode(self, predict, x):
+    def decode(self, predict, x, predict_step):
         original = x
         decoded_steps = []
         # For every predicted time-step
@@ -129,6 +129,7 @@ class SwarmNet(nn.Module):
                 node_i = predict[t][i]
                 # Decode back into original dimensionality (agent state vector)
                 decoded_i = self.node_decoder_mlp(node_i)
+                test = original.tolist()
                 original_state = original[i][6 + t]
                 # Decoded state is prediction of change. Add to state prediction stemmed from
                 decoded_states.append(torch.add(original_state, decoded_i))
@@ -138,6 +139,7 @@ class SwarmNet(nn.Module):
         return decoded_steps
 
     def forward(self, x, predict_steps):
+        x = numpy.swapaxes(x, 0, 1)
         condensed_steps = x
         all_predict = []
         for i in range(0, predict_steps):
@@ -146,7 +148,7 @@ class SwarmNet(nn.Module):
             time_steps = torch.transpose(condensed_agents, 0, 1)
             predict = self.graph_conv(time_steps)
             # Shape [condensed time-steps, agents, predicted state vector]
-            predict = self.decode(predict, x)
+            predict = self.decode(predict, x, i)
             # Shape [agents, condensed time-steps, predicted state vector]
             predict = torch.swapaxes(predict, 0, 1)
             extend_pred_list = numpy.zeros([predict.size(0), predict.size(1), 7, predict.size(2)])
@@ -175,6 +177,8 @@ class SwarmNet(nn.Module):
 
         # Shape = [agent, condensed time-step, prediction step, state-vector]
         predict = torch.stack(all_predict, 2)
+        # Shape = [condensed time-step, agent, prediction step, state-vector]
+        predict = torch.swapaxes(predict, 0, 1)
         test = predict.tolist()
 
         return predict

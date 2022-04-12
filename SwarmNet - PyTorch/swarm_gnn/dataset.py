@@ -36,16 +36,17 @@ class SimulationDataset(Dataset):
         #                                   [[11, 12], [21, 21], [-4, -5]]
         #                                   ], dtype=float)
         if config.curriculum is False:
-            prediction_steps = config.prediction_steps
+            self.prediction_steps = config.prediction_steps
         else:
-            prediction_steps = 1
+            self.prediction_steps = 1
         self.original_data = self.load(path)
         self.original_data = numpy.nan_to_num(self.original_data)
         # Data reshaped to  [time_step, agent, state]
         # self.original_data = numpy.swapaxes(self.original_data, 0, 1)
         # data = data[45:]
         self.data_x, self.data_y, self.state_length = preprocess_predict_steps(self.original_data, testData,
-                                                                               prediction_steps, config.truth_available)
+                                                                               self.prediction_steps,
+                                                                               config.truth_available)
         # Scaler incorporated but probably will not be used for some time
         self.scaler = scaler
         # If using scikit scaler, scale data (training data uses specified scaler, testing data uses training scaler)
@@ -54,11 +55,9 @@ class SimulationDataset(Dataset):
         # print(self.y[0])
 
     def __len__(self):
-        return len(self.X)
+        return len(self.X)-self.prediction_steps
 
     def __getitem__(self, index):
-        # TODO Idea: keep original data shape of time-steps per agent allowing for better batching.
-        #   Reshape data for easy accessing of relevant truth on returned values
         return self.X[index], self.y[index]
 
     def load(self, path):
