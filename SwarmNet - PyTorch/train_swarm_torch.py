@@ -163,6 +163,19 @@ def train_mode(config):
         last_val_loss = loss_train
         print("diff:")
         print(loss_diff)
+        # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
+        # loss_validate = numpy.mean(loss_validate)
+        # print(loss_validate)
+        #
+        # Test for
+        loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
+        loss_test = numpy.mean(loss_test)
+        if loss_test < lowest_mse and config.prediction_steps >= 10:
+            print("New lowest MSE, saving model")
+            lowest_mse = loss_test
+            model.lowest_mse = lowest_mse
+            torch.save(model, save_loc)
+            # plotVis(test_set.data, predictions, truths)
         if loss_diff <= 0.01:
             epochs_low_loss += 1
         else:
@@ -188,19 +201,7 @@ def train_mode(config):
 
         print(loss_train)
 
-        # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
-        # loss_validate = numpy.mean(loss_validate)
-        # print(loss_validate)
-        #
-        # Test for
-        loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
-        loss_test = numpy.mean(loss_test)
-        if loss_test < lowest_mse and config.prediction_steps >= 10:
-            print("New lowest MSE, saving model")
-            lowest_mse = loss_test
-            model.lowest_mse = lowest_mse
-            torch.save(model, save_loc)
-            # plotVis(test_set.data, predictions, truths)
+
         # f1 = metrics_test[1]
         # if f1 > highest_f1:
         #     print("New highest f1 score, saving model")
