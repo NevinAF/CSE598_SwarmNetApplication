@@ -49,7 +49,7 @@ def preprocess_predict_steps(data, is_test_data, steps, truth_available):
         # Shape = [agent, condensed time-step, prediction step, state-vector]
         # Don't want to predict on time-steps where truth no longer available
         data_x = data[:, 0:truth_ends_at - 1, :]
-        data_y = numpy.zeros([data.shape[0], data_x.shape[1], steps, data.shape[2]])
+        data_y = numpy.zeros([data_x.shape[0], data_x.shape[1], steps, data.shape[2]])
         for i in range(0, steps):
             data_y[:, 6:, i, :] = data[:, 7 + i:truth_ends_at + i, :]
         data_x = numpy.swapaxes(data_x, 0, 1)

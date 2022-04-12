@@ -34,7 +34,7 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
         y = y.to(device)
 
         # Forward pass
-        y_pred = model(X.float(), config.prediction_steps)
+        y_pred = model(X.float(), dataset.dataset.prediction_steps)
         test = y_pred.tolist()
         test2 = y.float().tolist()
         loss = loss_fcn(y_pred, y.float())
@@ -72,7 +72,7 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
         y = y.to(device)
 
         # Forward pass
-        y_pred = model(X.float())
+        y_pred = model(X.float(), dataset.dataset.prediction_steps)
         y_pred_detach = y_pred.cpu().detach()
         loss = loss_fcn(y_pred, y)
         predictions.append(y_pred_detach.numpy())
@@ -96,12 +96,13 @@ def test(epoch, model, dataset, loss_fcn, config):
     predictions = []
     truths = []
     for batch, (X, y) in enumerate(dataset):
-        if X.shape[0] < 7:
+        # Minimum 7 steps + 1 additional step for each additional prediction step
+        if X.shape[0] < 6 + dataset.dataset.prediction_steps:
             continue
         X = X.to(device)
         y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
-        y_pred = model(X.float(), config.prediction_steps).cpu().detach()
+        y_pred = model(X.float(), dataset.dataset.prediction_steps).cpu().detach()
         # print(y[0][0])
         # print(y_pred[0][0])
         if config.truth_available:
@@ -120,6 +121,10 @@ def test(epoch, model, dataset, loss_fcn, config):
 def train_mode(config):
     # Initialize the dataset
     train_set, test_set = retrieve_dataset(config, scaler=None)
+    if torch.cuda.is_available():
+        num_workers = torch.cuda.device_count()
+    else:
+        num_workers = multiprocessing.cpu_count()
 
     # Validation loader
     validation_split = 0
@@ -133,10 +138,6 @@ def train_mode(config):
     # Train loader
     train_index = list(set(indices) - set(validation_index))
     train_sampler = SequentialSampler(train_index)
-    if torch.cuda.is_available():
-        num_workers = torch.cuda.device_count()
-    else:
-        num_workers = multiprocessing.cpu_count()
     train_loader = DataLoader(train_set, batch_size=config.batch_size,
                               sampler=train_sampler, num_workers=num_workers)
 
@@ -162,7 +163,7 @@ def train_mode(config):
     loss_fcn = retrieve_loss(config.loss_name)
     lowest_mse = model.lowest_mse
     model_path = config.model_save_path
-    epochs_low_loss = 0
+    epochs_low_loss_diff = 0
     last_val_loss = 999999
     last_test_loss = 0
     save_loc = os.path.join(os.getcwd(), "model.pkl")
@@ -176,7 +177,6 @@ def train_mode(config):
         loss_train = numpy.mean(loss_train)
         print(loss_train)
         loss_diff = abs(loss_train - last_val_loss)
-        last_val_loss = loss_train
         # print("diff:")
         # print(loss_diff)
         # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
@@ -184,8 +184,12 @@ def train_mode(config):
         # print(loss_validate)
         #
         # Test for
-        loss_test, predictions = test(epoch, model, test_loader, loss_fcn, config)
+        loss_test, predictions, truths = test(epoch, model, test_loader, loss_fcn, config)
         loss_test = numpy.mean(loss_test)
+        print(loss_test)
+        time_end = time.time()
+        time_taken = time_end - time_start
+        print(time_taken)
         if loss_test < lowest_mse and (config.curriculum is False or config.prediction_steps >= 10):
             print("New lowest MSE, saving model")
             lowest_mse = loss_test
@@ -193,34 +197,21 @@ def train_mode(config):
             torch.save(model, save_loc)
             # plotVis(test_set.data, predictions, truths)
         if loss_diff <= 0.01:
-            epochs_low_loss += 1
+            epochs_low_loss_diff += 1
         else:
-            epochs_low_loss = 0
-        if epochs_low_loss > 2:
-            epochs_low_loss = 0
-            last_val_loss = 999999
+            epochs_low_loss_diff = 0
+        # If converging and not improving
+        # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
+        if epochs_low_loss_diff > 2 and last_val_loss > loss_train:
+            epochs_low_loss_diff = 0
             if config.curriculum is True:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
                 if config.prediction_steps < 10:
-                    train_loader.dataset.prediction_steps += 1
-                    test_loader.dataset.prediction_steps += 1
-                    train_loader.dataset.data_x, train_loader.dataset.data_y, train_loader.dataset.state_length = \
-                        preprocess_predict_steps(train_loader.dataset.original_data, False,
-                                                 train_loader.dataset.prediction_steps,
-                                                 config.truth_available)
-                    train_loader.dataset.X = torch.tensor(train_loader.dataset.data_x)
-                    train_loader.dataset.y = torch.tensor(train_loader.dataset.data_y)
-                    test_loader.dataset.data_x, test_loader.dataset.data_y, test_loader.dataset.state_length = \
-                        preprocess_predict_steps(test_loader.dataset.original_data, True,
-                                                 train_loader.dataset.prediction_steps,
-                                                 config.truth_available)
-                    test_loader.dataset.X = torch.tensor(test_loader.dataset.data_x)
-                    test_loader.dataset.y = torch.tensor(test_loader.dataset.data_y)
+                    train_set, test_set, train_loader, test_loader, validation_loader = \
+                        update_curriculum(train_set, test_set, config, num_workers)
 
-        time_end = time.time()
-        time_taken = time_end - time_start
-        print(time_taken)
+        last_val_loss = loss_train
 
         # f1 = metrics_test[1]
         # if f1 > highest_f1:
@@ -256,6 +247,42 @@ def test_mode(config):
     predictions_json = json.dumps(predictions.tolist())
     with open('predictions.json', 'w') as outfile:
         json.dump(predictions_json, outfile)
+
+
+def update_curriculum(train_set, test_set, config, num_workers):
+    train_set.prediction_steps += 1
+    test_set.prediction_steps += 1
+    train_set.data_x, train_set.data_y, train_set.state_length = \
+        preprocess_predict_steps(train_set.original_data, False,
+                                 train_set.prediction_steps,
+                                 config.truth_available)
+    train_set.X = torch.tensor(train_set.data_x)
+    train_set.y = torch.tensor(train_set.data_y)
+    test_set.data_x, test_set.data_y, test_set.state_length = \
+        preprocess_predict_steps(test_set.original_data, True,
+                                 test_set.prediction_steps,
+                                 config.truth_available)
+    test_set.X = torch.tensor(test_set.data_x)
+    test_set.y = torch.tensor(test_set.data_y)
+    # Validation loader
+    validation_split = 0
+    dataset_length = len(train_set)
+    indices = list(range(dataset_length))
+    validation_length = int(numpy.floor(validation_split * dataset_length))
+    validation_index = numpy.random.choice(indices, size=validation_length, replace=False)
+    validation_sampler = SequentialSampler(validation_index)
+    validation_loader = DataLoader(train_set, batch_size=config.batch_size, sampler=validation_sampler)
+
+    # Train loader
+    train_index = list(set(indices) - set(validation_index))
+    train_sampler = SequentialSampler(train_index)
+    train_loader = DataLoader(train_set, batch_size=config.batch_size,
+                              sampler=train_sampler, num_workers=num_workers)
+
+    # # Test loader
+    test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
+
+    return train_set, test_set, train_loader, test_loader, validation_loader
 
 
 def main():
