@@ -247,7 +247,7 @@ def test_mode(config):
         print("Need existing model path to test model")
         exit(0)
     test_dataset = SimulationDataset(config.test_path, True, model.scaler, config)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size)
+    test_loader = DataLoader(test_dataset, batch_size=99999999)
     loss_fcn = retrieve_loss(config.loss_name)
     loss_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
     predictions = numpy.swapaxes(predictions, 0, 1)
