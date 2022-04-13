@@ -14,6 +14,8 @@ from swarm_gnn.model import SwarmNet
 from swarm_gnn.preprocessing import preprocess_predict_steps
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
 # TODO testing
 device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
@@ -121,7 +123,7 @@ def test(epoch, model, dataset, loss_fcn, config):
 def train_mode(config):
     # Initialize the dataset
     train_set, test_set = retrieve_dataset(config, scaler=None)
-    if torch.cuda.is_available():
+    if device == 'cuda':
         num_workers = torch.cuda.device_count()
     else:
         num_workers = multiprocessing.cpu_count()
@@ -213,7 +215,7 @@ def train_mode(config):
             if config.curriculum is True:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
-                if config.prediction_steps < 10:
+                if model.predictions_trained_to < 10:
                     train_set, test_set, train_loader, test_loader, validation_loader = \
                         update_curriculum(train_set, test_set, config, num_workers)
                     model.predictions_trained_to += 1

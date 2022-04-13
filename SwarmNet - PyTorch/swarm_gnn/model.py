@@ -26,7 +26,7 @@ class SwarmNet(nn.Module):
         self.node_decoder_mlp = nn.Linear(32, agent_state_vector_length)
         self.relu = nn.ReLU()
         self.scaler = None
-        self.predictions_trained_to = 0
+        self.predictions_trained_to = 1
         self.lowest_mse_this_horizon = 999999999999
 
     def conv_1d(self, x, predict_step):
