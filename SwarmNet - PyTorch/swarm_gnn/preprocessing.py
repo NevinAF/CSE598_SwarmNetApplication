@@ -42,7 +42,7 @@ def preprocess_json(data):
 
 def preprocess_predict_steps(data, is_test_data, steps, truth_available):
     if is_test_data is True:
-        data = data[:, :50, ]
+        data = data[:, :100, ]
     if truth_available:
         truth_ends_at = data.shape[1] - steps + 1
         # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size

@@ -38,7 +38,7 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
         y_pred = model(X.float(), dataset.dataset.prediction_steps)
         test = y_pred.tolist()
         test2 = y.float().tolist()
-        loss = loss_fcn(y_pred, y.float())
+        loss = loss_fcn(y_pred.float(), y.float())
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
         #     print(loss)
@@ -98,14 +98,12 @@ def test(epoch, model, dataset, loss_fcn, config):
     truths = []
     for batch, (X, y) in enumerate(dataset):
         # Minimum 7 steps + 1 additional step for each additional prediction step
-        if X.shape[0] < 6 + dataset.dataset.prediction_steps:
+        if X.shape[0] < 7:
             continue
         X = X.to(device)
         y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
         y_pred = model(X.float(), dataset.dataset.prediction_steps).cpu().detach()
-        # print(y[0][0])
-        # print(y_pred[0][0])
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
@@ -121,7 +119,7 @@ def test(epoch, model, dataset, loss_fcn, config):
 
 def train_mode(config):
     # Initialize the dataset
-    train_set, test_set = retrieve_dataset(config, scaler=None)
+    train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=config.prediction_steps)
     if device == 'cuda':
         num_workers = torch.cuda.device_count()
     else:
@@ -191,6 +189,8 @@ def train_mode(config):
         # Test for
         loss_test, predictions, truths = test(epoch, model, test_loader, loss_fcn, config)
         loss_test = numpy.mean(loss_test)
+        print(predictions[0][0])
+        print(truths[0][0])
         print(loss_test)
         time_end = time.time()
         time_taken = time_end - time_start
@@ -245,11 +245,13 @@ def test_mode(config):
     else:
         print("Need existing model path to test model")
         exit(0)
-    test_dataset = SimulationDataset(config.test_path, True, model.scaler, config)
+    test_dataset = SimulationDataset(config.test_path, True, model.scaler, config, config.prediction_steps)
     test_dataset.prediction_steps = config.prediction_steps
     test_loader = DataLoader(test_dataset, batch_size=99999999)
     loss_fcn = retrieve_loss(config.loss_name)
     loss_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
+    print(predictions[1][0])
+    print(truths[1][0])
     predictions = numpy.swapaxes(predictions, 0, 1)
     truths = numpy.swapaxes(truths, 0, 1)
     print(numpy.mean(loss_test))
