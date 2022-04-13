@@ -23,7 +23,8 @@ class SwarmNet(nn.Module):
         self.edge_state_mlp = nn.Linear(32 * 2, 32)
         self.edge_agg_mlp = nn.Linear(32, 32)
         self.node_updater_mlp = nn.Linear(32 * 2, 32)
-        self.node_decoder_mlp = nn.Linear(32, agent_state_vector_length)
+        # TODO testing only predicting next position and calculating velocity
+        self.node_decoder_mlp = nn.Linear(32, 3)
         self.relu = nn.ReLU()
         self.scaler = None
         self.predictions_trained_to = 1
@@ -140,6 +141,27 @@ class SwarmNet(nn.Module):
                 else:
                     original_state = original[i][t][6]
                 original_state_test = original_state.tolist()
+                # We already have predicted change in position, so change in velocity is easy to calculate+
+                vel_x = decoded_i[0]
+                vel_y = decoded_i[1]
+                vel_z = decoded_i[2]
+                r1 = torch.multiply(vel_x, vel_x)
+                r2 = torch.multiply(vel_y, vel_y)
+                r3 = torch.multiply(vel_z, vel_z)
+                r = torch.add(r1, r2)
+                r = torch.add(r, r3)
+                r = torch.sqrt(r)
+                long = torch.arctan2(vel_y, vel_z)
+                lat = torch.acos(torch.divide(vel_z, r))
+                vel = torch.stack([r, long, lat])
+                decoded_i = torch.concat([decoded_i, vel])
+                sub = torch.Tensor([0, 0, 0])
+                sub = torch.concat([sub, vel])
+                original_state = torch.sub(original_state, sub)
+                # original_state[3:6] = 0
+                # theta = torch.arccos
+                # long = acos(x / sqrt(x * x + y * y)) * (y < 0 ? -1: 1)
+                # lat = acos(z / r)
                 # Decoded state is prediction of change. Add to state prediction stemmed from
                 decoded_states.append(torch.add(original_state, decoded_i))
             decoded_states = torch.stack(decoded_states)
