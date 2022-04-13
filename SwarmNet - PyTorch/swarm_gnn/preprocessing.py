@@ -4,8 +4,9 @@ import copy
 import numpy
 import pandas
 
+
 # Returns a data frame containing only data for specific agent IDs
-from sklearn.preprocessing import MinMaxScaler
+# from sklearn.preprocessing import MinMaxScaler
 
 
 def preprocess_csv(data):
@@ -33,5 +34,25 @@ def preprocess_csv(data):
 
 def preprocess_json(data):
     data = numpy.array(data)
+    # TODO temporarily ignoring environmental context and fitting to exact environment
+    data = data[:, :, 0:6]
 
     return data
+
+
+def preprocess_predict_steps(data, is_test_data, steps, truth_available):
+    if is_test_data is True:
+        data = data[:, :500, ]
+    if truth_available:
+        truth_ends_at = data.shape[1] - steps + 1
+        # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size
+        # Shape = [agent, condensed time-step, prediction step, state-vector]
+        data_y = numpy.zeros([data.shape[0], truth_ends_at - 7, steps, data.shape[2]])
+        for i in range(0, steps):
+            data_y[:, :, i, :] = data[:, 7 + i:truth_ends_at + i, :]
+        # Don't want to predict on time-steps where truth no longer available
+        data_x = data[:, 0:truth_ends_at - 1, :]
+    else:
+        truth_ends_at = None
+    state_length = data.shape[2]
+    return data_x, data_y, state_length
