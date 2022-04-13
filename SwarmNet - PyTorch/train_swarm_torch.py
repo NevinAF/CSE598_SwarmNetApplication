@@ -15,7 +15,6 @@ from swarm_gnn.preprocessing import preprocess_predict_steps
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
 # TODO testing
 device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
@@ -162,7 +161,6 @@ def train_mode(config):
     # # Test loader
     test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
 
-
     optimizer_opts = {"lr": 1e-1, "betas": [0.9, 0.999], "eps": 1e-8, "weight_decay": 1e-5}
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
@@ -172,7 +170,7 @@ def train_mode(config):
     epochs_low_loss_diff = 0
     last_val_loss = 999999
     last_test_loss = 0
-    save_loc = os.path.join(os.getcwd(), "model.pkl")
+    save_loc = os.path.join(os.getcwd(), "model_10_step.pkl")
 
     # Epoch Training loop
     for epoch in range(config.epochs):
@@ -248,6 +246,7 @@ def test_mode(config):
         print("Need existing model path to test model")
         exit(0)
     test_dataset = SimulationDataset(config.test_path, True, model.scaler, config)
+    test_dataset.prediction_steps = config.prediction_steps
     test_loader = DataLoader(test_dataset, batch_size=99999999)
     loss_fcn = retrieve_loss(config.loss_name)
     loss_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
