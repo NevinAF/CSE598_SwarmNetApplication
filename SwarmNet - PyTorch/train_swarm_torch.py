@@ -14,6 +14,7 @@ from swarm_gnn.model import SwarmNet
 from swarm_gnn.preprocessing import preprocess_predict_steps
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 # TODO testing
 device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
@@ -37,7 +38,7 @@ def train(epoch, model, dataset, optimizer, loss_fcn, config):
         y_pred = model(X.float(), dataset.dataset.prediction_steps)
         test = y_pred.tolist()
         test2 = y.float().tolist()
-        loss = loss_fcn(y_pred, y.float())
+        loss = loss_fcn(y_pred.float(), y.float())
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
         #     print(loss)
@@ -97,14 +98,12 @@ def test(epoch, model, dataset, loss_fcn, config):
     truths = []
     for batch, (X, y) in enumerate(dataset):
         # Minimum 7 steps + 1 additional step for each additional prediction step
-        if X.shape[0] < 6 + dataset.dataset.prediction_steps:
+        if X.shape[0] < 7:
             continue
         X = X.to(device)
         y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
         y_pred = model(X.float(), dataset.dataset.prediction_steps).cpu().detach()
-        # print(y[0][0])
-        # print(y_pred[0][0])
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
@@ -120,8 +119,8 @@ def test(epoch, model, dataset, loss_fcn, config):
 
 def train_mode(config):
     # Initialize the dataset
-    train_set, test_set = retrieve_dataset(config, scaler=None)
-    if torch.cuda.is_available():
+    train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=config.prediction_steps)
+    if device == 'cuda':
         num_workers = torch.cuda.device_count()
     else:
         num_workers = multiprocessing.cpu_count()
@@ -133,8 +132,9 @@ def train_mode(config):
         model = SwarmNet(train_set.state_length)
     elif config.model_load_path is not None:
         model = retrieve_model(config.model_load_path)
-        train_set.prediction_steps = model.predictions_trained_to
-        test_set.prediction_steps = model.predictions_trained_to
+        if config.curriculum is True:
+            train_set.prediction_steps = model.predictions_trained_to
+            test_set.prediction_steps = model.predictions_trained_to
 
     else:
         print("Need model path if training existing model. Either provide path or set load_train to False")
@@ -160,7 +160,6 @@ def train_mode(config):
     # # Test loader
     test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
 
-
     optimizer_opts = {"lr": 1e-1, "betas": [0.9, 0.999], "eps": 1e-8, "weight_decay": 1e-5}
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
@@ -170,7 +169,7 @@ def train_mode(config):
     epochs_low_loss_diff = 0
     last_val_loss = 999999
     last_test_loss = 0
-    save_loc = os.path.join(os.getcwd(), "model.pkl")
+    save_loc = os.path.join(os.getcwd(), "model_10_step.pkl")
 
     # Epoch Training loop
     for epoch in range(config.epochs):
@@ -191,6 +190,8 @@ def train_mode(config):
         # Test for
         loss_test, predictions, truths = test(epoch, model, test_loader, loss_fcn, config)
         loss_test = numpy.mean(loss_test)
+        print(predictions[0][0])
+        print(truths[0][0])
         print(loss_test)
         time_end = time.time()
         time_taken = time_end - time_start
@@ -202,18 +203,18 @@ def train_mode(config):
             model.lowest_mse_this_horizon = lowest_mse
             torch.save(model, save_loc)
             # plotVis(test_set.data, predictions, truths)
-        if loss_diff <= 0.01:
+        if loss_diff <= 0.0075:
             epochs_low_loss_diff += 1
         else:
             epochs_low_loss_diff = 0
         # If converging and not improving
         # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
-        if epochs_low_loss_diff > 2 and last_val_loss > loss_train:
+        if epochs_low_loss_diff > 5 and last_val_loss > loss_train:
             epochs_low_loss_diff = 0
             if config.curriculum is True:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
-                if config.prediction_steps < 10:
+                if model.predictions_trained_to < 10:
                     train_set, test_set, train_loader, test_loader, validation_loader = \
                         update_curriculum(train_set, test_set, config, num_workers)
                     model.predictions_trained_to += 1
@@ -245,10 +246,13 @@ def test_mode(config):
     else:
         print("Need existing model path to test model")
         exit(0)
-    test_dataset = SimulationDataset(config.test_path, True, model.scaler, config)
+    test_dataset = SimulationDataset(config.test_path, True, model.scaler, config, config.prediction_steps)
+    test_dataset.prediction_steps = config.prediction_steps
     test_loader = DataLoader(test_dataset, batch_size=99999999)
     loss_fcn = retrieve_loss(config.loss_name)
     loss_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
+    print(predictions[0][0])
+    print(truths[0][0])
     predictions = numpy.swapaxes(predictions, 0, 1)
     truths = numpy.swapaxes(truths, 0, 1)
     print(numpy.mean(loss_test))

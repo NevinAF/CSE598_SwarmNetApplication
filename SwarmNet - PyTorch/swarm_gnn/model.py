@@ -26,7 +26,7 @@ class SwarmNet(nn.Module):
         self.node_decoder_mlp = nn.Linear(32, agent_state_vector_length)
         self.relu = nn.ReLU()
         self.scaler = None
-        self.predictions_trained_to = 0
+        self.predictions_trained_to = 1
         self.lowest_mse_this_horizon = 999999999999
 
     def conv_1d(self, x, predict_step):
@@ -124,6 +124,7 @@ class SwarmNet(nn.Module):
         # For every predicted time-step
         for t in range(0, len(predict)):
             step = predict[t]
+            test_predict = predict.tolist()
             decoded_states = []
             # For every agent
             for i in range(0, len(step)):
@@ -131,7 +132,14 @@ class SwarmNet(nn.Module):
                 # Decode back into original dimensionality (agent state vector)
                 decoded_i = self.node_decoder_mlp(node_i)
                 test = original.tolist()
-                original_state = original[i][6 + t]
+                # First step, the original step is the step for the current agent + 6 due to 1d conv filter
+                #   size/num layers
+                if predict_step == 0:
+                    original_state = original[i][6 + t]
+                # Second step, it is the last prediction
+                else:
+                    original_state = original[i][t][6]
+                original_state_test = original_state.tolist()
                 # Decoded state is prediction of change. Add to state prediction stemmed from
                 decoded_states.append(torch.add(original_state, decoded_i))
             decoded_states = torch.stack(decoded_states)
@@ -149,7 +157,7 @@ class SwarmNet(nn.Module):
             time_steps = torch.transpose(condensed_agents, 0, 1)
             predict = self.graph_conv(time_steps)
             # Shape [condensed time-steps, agents, predicted state vector]
-            predict = self.decode(predict, x, i)
+            predict = self.decode(predict, condensed_steps, i)
             # Shape [agents, condensed time-steps, predicted state vector]
             predict = torch.swapaxes(predict, 0, 1)
             extend_pred_list = numpy.zeros([predict.size(0), predict.size(1), 7, predict.size(2)])
@@ -167,6 +175,7 @@ class SwarmNet(nn.Module):
                     extend_pred_list = test_list
                     extend_pred = condensed_steps
 
+                pre_roll = extend_pred.tolist()
                 # Roll window to left
                 extend_pred = torch.roll(extend_pred, -1, 2)
                 # Replace last step in window (first step before roll) with previous prediction
