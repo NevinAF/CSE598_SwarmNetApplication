@@ -11,7 +11,7 @@ train:
   env_height: 1000
   add_noise: False
   sample_size: "max"
-  curriculum: True
+  curriculum: False
 
 test:
   data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
@@ -27,5 +27,5 @@ model:
   # Train model or test existing model
   mode: "test"
   # Create new model for training or train existing model
-  load_train: False
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/model_10_step.pkl'
+  load_train: True
+  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/model.pkl'

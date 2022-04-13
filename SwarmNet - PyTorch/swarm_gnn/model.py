@@ -175,6 +175,7 @@ class SwarmNet(nn.Module):
                     extend_pred_list = test_list
                     extend_pred = condensed_steps
 
+                pre_roll = extend_pred.tolist()
                 # Roll window to left
                 extend_pred = torch.roll(extend_pred, -1, 2)
                 # Replace last step in window (first step before roll) with previous prediction

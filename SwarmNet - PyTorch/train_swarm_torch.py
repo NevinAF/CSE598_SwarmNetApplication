@@ -132,8 +132,9 @@ def train_mode(config):
         model = SwarmNet(train_set.state_length)
     elif config.model_load_path is not None:
         model = retrieve_model(config.model_load_path)
-        train_set.prediction_steps = model.predictions_trained_to
-        test_set.prediction_steps = model.predictions_trained_to
+        if config.curriculum is True:
+            train_set.prediction_steps = model.predictions_trained_to
+            test_set.prediction_steps = model.predictions_trained_to
 
     else:
         print("Need model path if training existing model. Either provide path or set load_train to False")
@@ -202,13 +203,13 @@ def train_mode(config):
             model.lowest_mse_this_horizon = lowest_mse
             torch.save(model, save_loc)
             # plotVis(test_set.data, predictions, truths)
-        if loss_diff <= 0.01:
+        if loss_diff <= 0.0075:
             epochs_low_loss_diff += 1
         else:
             epochs_low_loss_diff = 0
         # If converging and not improving
         # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
-        if epochs_low_loss_diff > 2 and last_val_loss > loss_train:
+        if epochs_low_loss_diff > 5 and last_val_loss > loss_train:
             epochs_low_loss_diff = 0
             if config.curriculum is True:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
@@ -250,8 +251,8 @@ def test_mode(config):
     test_loader = DataLoader(test_dataset, batch_size=99999999)
     loss_fcn = retrieve_loss(config.loss_name)
     loss_test, predictions, truths = test(0, model, test_loader, loss_fcn, config)
-    print(predictions[1][0])
-    print(truths[1][0])
+    print(predictions[0][0])
+    print(truths[0][0])
     predictions = numpy.swapaxes(predictions, 0, 1)
     truths = numpy.swapaxes(truths, 0, 1)
     print(numpy.mean(loss_test))
