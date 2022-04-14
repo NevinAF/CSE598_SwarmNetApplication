@@ -118,23 +118,21 @@ def test(epoch, model, dataset, loss_fcn, config):
 
 
 def train_mode(config):
-    # Initialize the dataset
-    train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=config.prediction_steps)
     if device == 'cuda':
         num_workers = torch.cuda.device_count()
     else:
-        num_workers = multiprocessing.cpu_count()
+        num_workers = 0
 
     # Initialize the model
     if config.load_train is False:
-        # TODO filled in placeholders for testing
-        time_steps = 2000
+        # Initialize the dataset
+        train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=config.prediction_steps)
         model = SwarmNet(train_set.state_length)
     elif config.model_load_path is not None:
         model = retrieve_model(config.model_load_path)
         if config.curriculum is True:
-            train_set.prediction_steps = model.predictions_trained_to
-            test_set.prediction_steps = model.predictions_trained_to
+            # Initialize the dataset
+            train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=model.predictions_trained_to)
 
     else:
         print("Need model path if training existing model. Either provide path or set load_train to False")
@@ -169,7 +167,7 @@ def train_mode(config):
     epochs_low_loss_diff = 0
     last_val_loss = 999999
     last_test_loss = 0
-    save_loc = os.path.join(os.getcwd(), "model_10_step.pkl")
+    save_loc = os.path.join(os.getcwd(), "model.pkl")
     min_epochs = 10
     curriculum_epoch_num = 0
 
@@ -293,10 +291,10 @@ def update_curriculum(train_set, test_set, config, num_workers):
     train_index = list(set(indices) - set(validation_index))
     train_sampler = SequentialSampler(train_index)
     train_loader = DataLoader(train_set, batch_size=config.batch_size,
-                              sampler=train_sampler, num_workers=num_workers, persistent_workers=True)
+                              sampler=train_sampler, num_workers=num_workers, persistent_workers=False)
 
     # # Test loader
-    test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers, persistent_workers=True)
+    test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers, persistent_workers=False)
 
     return train_set, test_set, train_loader, test_loader, validation_loader
 
