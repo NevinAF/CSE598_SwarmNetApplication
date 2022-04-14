@@ -221,6 +221,8 @@ def train_mode(config):
                         update_curriculum(train_set, test_set, config, num_workers)
                     model.predictions_trained_to += 1
                     model.lowest_mse_this_horizon = 999999
+                else:
+                    print("MAX CURRICULUM REACHED. CONVERGENCE LIKELY. CONSIDER STOPPING")
 
         last_val_loss = loss_train
 
