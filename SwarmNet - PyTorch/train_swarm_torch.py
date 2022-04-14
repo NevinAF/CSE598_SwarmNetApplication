@@ -170,9 +170,12 @@ def train_mode(config):
     last_val_loss = 999999
     last_test_loss = 0
     save_loc = os.path.join(os.getcwd(), "model_10_step.pkl")
+    min_epochs = 10
+    curriculum_epoch_num = 0
 
     # Epoch Training loop
     for epoch in range(config.epochs):
+        curriculum_epoch_num += 1
         lowest_mse = model.lowest_mse_this_horizon
         time_start = time.time()
         print(epoch)
@@ -211,8 +214,9 @@ def train_mode(config):
         # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
         if epochs_low_loss_diff > 5 and last_val_loss > loss_train:
             epochs_low_loss_diff = 0
-            if config.curriculum is True:
+            if config.curriculum is True and curriculum_epoch_num > min_epochs:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
+                curriculum_epoch_num = 0
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
                 if model.predictions_trained_to < 10:
                     train_set, test_set, train_loader, test_loader, validation_loader = \
@@ -289,10 +293,10 @@ def update_curriculum(train_set, test_set, config, num_workers):
     train_index = list(set(indices) - set(validation_index))
     train_sampler = SequentialSampler(train_index)
     train_loader = DataLoader(train_set, batch_size=config.batch_size,
-                              sampler=train_sampler, num_workers=num_workers)
+                              sampler=train_sampler, num_workers=num_workers, persistent_workers=True)
 
     # # Test loader
-    test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
+    test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers, persistent_workers=True)
 
     return train_set, test_set, train_loader, test_loader, validation_loader
 

@@ -4,17 +4,17 @@ general:
 train:
   n_epochs: 20000000
   batch_size: 25
-  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
+  data_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData.json'
   loss: "mse"
   optimizer: "adam"
   env_width: 1400
   env_height: 1000
   add_noise: False
   sample_size: "max"
-  curriculum: False
+  curriculum: True
 
 test:
-  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
+  data_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -28,4 +28,4 @@ model:
   mode: "train"
   # Create new model for training or train existing model
   load_train: False
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/model.pkl'
+  load_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\model_1_step.pkl'
