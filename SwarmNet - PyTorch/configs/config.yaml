@@ -1,5 +1,5 @@
 general:
-  prediction_steps: 40
+  prediction_steps: 10
   test_seg_length: 500
 
 train:
@@ -13,6 +13,7 @@ train:
   add_noise: False
   sample_size: "max"
   curriculum: True
+  max_curric_steps: 10
 
 test:
   data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_2.json'

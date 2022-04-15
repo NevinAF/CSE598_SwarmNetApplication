@@ -216,10 +216,11 @@ def train_mode(config):
                 print("--------------------------UPDATING CURRICULUM--------------------------")
                 curriculum_epoch_num = 0
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
-                if model.predictions_trained_to < 10:
+                if model.predictions_trained_to < config.max_curric_steps:
                     train_set, test_set, train_loader, test_loader, validation_loader = \
                         update_curriculum(train_set, test_set, config, num_workers)
                     model.predictions_trained_to += 1
+                    print("Training step: " + str(model.predictions_trained_to))
                     model.lowest_mse_this_horizon = 999999
                 else:
                     print("MAX CURRICULUM REACHED. CONVERGENCE LIKELY. CONSIDER STOPPING")
