@@ -1,5 +1,6 @@
 general:
   prediction_steps: 40
+  test_seg_length: 500
 
 train:
   n_epochs: 20000000
@@ -14,7 +15,7 @@ train:
   curriculum: True
 
 test:
-  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
+  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_2.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -27,5 +28,5 @@ model:
   # Train model or test existing model
   mode: "test"
   # Create new model for training or train existing model
-  load_train: True
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model_10_step.pkl'
+  load_train: False
+  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/model.pkl'

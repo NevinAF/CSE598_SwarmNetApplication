@@ -271,13 +271,13 @@ def update_curriculum(train_set, test_set, config, num_workers):
     train_set.data_x, train_set.data_y, train_set.state_length = \
         preprocess_predict_steps(train_set.original_data, False,
                                  train_set.prediction_steps,
-                                 config.truth_available)
+                                 config.truth_available, config.test_seg_length)
     train_set.X = torch.tensor(train_set.data_x)
     train_set.y = torch.tensor(train_set.data_y)
     test_set.data_x, test_set.data_y, test_set.state_length = \
         preprocess_predict_steps(test_set.original_data, True,
                                  test_set.prediction_steps,
-                                 config.truth_available)
+                                 config.truth_available, config.test_seg_length)
     test_set.X = torch.tensor(test_set.data_x)
     test_set.y = torch.tensor(test_set.data_y)
     # Validation loader

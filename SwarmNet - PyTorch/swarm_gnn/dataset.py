@@ -43,7 +43,8 @@ class SimulationDataset(Dataset):
         # data = data[45:]
         self.data_x, self.data_y, self.state_length = preprocess_predict_steps(self.original_data, testData,
                                                                                self.prediction_steps,
-                                                                               config.truth_available)
+                                                                               config.truth_available,
+                                                                               config.test_seg_length)
         # Scaler incorporated but probably will not be used for some time
         self.scaler = scaler
         # If using scikit scaler, scale data (training data uses specified scaler, testing data uses training scaler)
