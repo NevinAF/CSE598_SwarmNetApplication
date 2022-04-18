@@ -1,5 +1,5 @@
 general:
-  prediction_steps: 40
+  prediction_steps: 50
   test_seg_length: 500
 
 train:
@@ -18,7 +18,7 @@ train:
   max_curric_steps: 30
 
 test:
-  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
+  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_2.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
