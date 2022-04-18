@@ -9,7 +9,7 @@ class ExperimentConfig:
         self.test_seg_length = config["general"]["test_seg_length"]
 
         # Location of train dataset
-        self.train_path = config["train"]["data_path"]
+        self.train_paths = config["train"]["data_paths"]
         self.loss_name = config["train"]["loss"]
         self.epochs = config["train"]["n_epochs"]
         self.batch_size = config["train"]["batch_size"]

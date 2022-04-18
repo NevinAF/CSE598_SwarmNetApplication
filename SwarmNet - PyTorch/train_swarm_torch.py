@@ -8,8 +8,8 @@ import torch
 # from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from torch.utils.data import DataLoader, SubsetRandomSampler, SequentialSampler
 
-from swarm_gnn import retrieve_model, retrieve_loss, retrieve_dataset, utils, ExperimentConfig
-from swarm_gnn.dataset import SimulationDataset
+from swarm_gnn import retrieve_model, retrieve_loss, utils, ExperimentConfig
+from swarm_gnn.dataset import SimulationDataset, retrieve_test_set, retrieve_train_sets
 from swarm_gnn.model import SwarmNet
 from swarm_gnn.preprocessing import preprocess_predict_steps
 
@@ -19,40 +19,41 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
 
-def train(epoch, model, dataset, optimizer, loss_fcn, config):
+def train(epoch, model, loaders, optimizer, loss_fcn, config):
     model.train()
 
     loss_list = []
     predictions = []
     truths = []
 
-    for batch, (X, y) in enumerate(dataset):
-        if X.shape[0] < 7:
-            continue
-        optimizer.zero_grad()
-        X = X.to(device)
-        y = torch.tensor(y.tolist()[6:])
-        y = y.to(device)
+    for loader in loaders:
+        for batch, (X, y) in enumerate(loader):
+            if X.shape[0] < 7:
+                continue
+            optimizer.zero_grad()
+            X = X.to(device)
+            y = y[6:]
+            y = y.to(device)
 
-        # Forward pass
-        y_pred = model(X.float(), dataset.dataset.prediction_steps)
-        test = y_pred.tolist()
-        test2 = y.float().tolist()
-        loss = loss_fcn(y_pred.float(), y.float())
-        # truth_list = y_pred.tolist()
-        # if batch % 10 == 0:
-        #     print(loss)
+            # Forward pass
+            y_pred = model(X.float(), loader.dataset.prediction_steps)
+            test = y_pred.tolist()
+            test2 = y.float().tolist()
+            loss = loss_fcn(y_pred.float(), y.float())
+            # truth_list = y_pred.tolist()
+            # if batch % 10 == 0:
+            #     print(loss)
 
-        # Backward pass
-        loss.backward()
-        optimizer.step()
-        y_pred_detach = y_pred.detach()
-        y_detach = y.detach()
-        predictions.append(y_pred_detach.tolist())
-        truths.append(y_detach.tolist())
+            # Backward pass
+            loss.backward()
+            optimizer.step()
+            y_pred_detach = y_pred.detach()
+            y_detach = y.detach()
+            predictions.append(y_pred_detach.tolist())
+            truths.append(y_detach.tolist())
 
-        # Store losses for epoch
-        loss_list.append(loss.cpu().item())
+            # Store losses for epoch
+            loss_list.append(loss.cpu().item())
     predictions = numpy.concatenate(predictions)
     truths = numpy.concatenate(truths)
     # metrics = utils.metrics(predictions, truths)
@@ -69,7 +70,7 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
         if X.shape[0] < 7:
             continue
         X = X.to(device)
-        y = torch.tensor(y.tolist()[6:])
+        y = y[6:]
         y = y.to(device)
 
         # Forward pass
@@ -89,11 +90,6 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
 def test(epoch, model, dataset, loss_fcn, config):
     model.eval()
     losses = []
-    accuracy = []
-    f1 = []
-    precision = []
-    specificity = []
-    summary = {}
     predictions = []
     truths = []
     for batch, (X, y) in enumerate(dataset):
@@ -101,7 +97,8 @@ def test(epoch, model, dataset, loss_fcn, config):
         if X.shape[0] < 7:
             continue
         X = X.to(device)
-        y = torch.tensor(y.tolist()[6:])
+        y = y[6:]
+        # y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
         y_pred = model(X.float(), dataset.dataset.prediction_steps).cpu().detach()
         if config.truth_available:
@@ -118,6 +115,8 @@ def test(epoch, model, dataset, loss_fcn, config):
 
 
 def train_mode(config):
+    train_loaders = []
+    val_loaders = []
     if device == 'cuda':
         num_workers = torch.cuda.device_count()
     else:
@@ -126,34 +125,40 @@ def train_mode(config):
     # Initialize the model
     if config.load_train is False:
         # Initialize the dataset
-        train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=config.prediction_steps)
-        model = SwarmNet(train_set.state_length)
+        test_set = retrieve_test_set(config, scaler=None, predict_steps=config.prediction_steps)
+        train_sets = retrieve_train_sets(config.train_paths, config, scaler=None, predict_steps=config.prediction_steps)
+        model = SwarmNet(train_sets[0].state_length)
     elif config.model_load_path is not None:
         model = retrieve_model(config.model_load_path)
         if config.curriculum is True:
             # Initialize the dataset
-            train_set, test_set = retrieve_dataset(config, scaler=None, predict_steps=model.predictions_trained_to)
+            test_set = retrieve_test_set(config, scaler=None, predict_steps=model.predictions_trained_to)
+            train_sets = retrieve_train_sets(config.train_paths, scaler=None,
+                                             predict_steps=model.predictions_trained_to)
 
     else:
-        print("Need model path if training existing model. Either provide path or set load_train to False")
+        print("Need model path if training existing model. Either povide path or set load_train to False")
         exit(0)
-    model.scaler = train_set.scaler
+    model.scaler = train_sets[0].scaler
     model = model.to(device)
 
-    # Validation loader
-    validation_split = 0
-    dataset_length = len(train_set)
-    indices = list(range(dataset_length))
-    validation_length = int(numpy.floor(validation_split * dataset_length))
-    validation_index = numpy.random.choice(indices, size=validation_length, replace=False)
-    validation_sampler = SequentialSampler(validation_index)
-    validation_loader = DataLoader(train_set, batch_size=config.batch_size, sampler=validation_sampler)
+    for train_set in train_sets:
+        # Validation loader
+        validation_split = 0
+        dataset_length = len(train_set)
+        indices = list(range(dataset_length))
+        validation_length = int(numpy.floor(validation_split * dataset_length))
+        validation_index = numpy.random.choice(indices, size=validation_length, replace=False)
+        validation_sampler = SequentialSampler(validation_index)
+        validation_loader = DataLoader(train_set, batch_size=config.batch_size, sampler=validation_sampler)
 
-    # Train loader
-    train_index = list(set(indices) - set(validation_index))
-    train_sampler = SequentialSampler(train_index)
-    train_loader = DataLoader(train_set, batch_size=config.batch_size,
-                              sampler=train_sampler, num_workers=num_workers)
+        # Train loader
+        train_index = list(set(indices) - set(validation_index))
+        train_sampler = SequentialSampler(train_index)
+        train_loader = DataLoader(train_set, batch_size=config.batch_size,
+                                  sampler=train_sampler, num_workers=num_workers)
+        val_loaders.append(validation_loader)
+        train_loaders.append(train_loader)
 
     # # Test loader
     test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
@@ -167,7 +172,6 @@ def train_mode(config):
     epochs_low_loss_diff = 0
     last_val_loss = 999999
     last_test_loss = 0
-    save_loc = os.path.join(os.getcwd(), "model.pkl")
     min_epochs = 10
     curriculum_epoch_num = 0
 
@@ -178,7 +182,7 @@ def train_mode(config):
         time_start = time.time()
         print(epoch)
         # Train for one epoch
-        loss_train = train(epoch, model, train_loader, optimizer, loss_fcn, config)
+        loss_train = train(epoch, model, train_loaders, optimizer, loss_fcn, config)
         loss_train = numpy.mean(loss_train)
         print(loss_train)
         loss_diff = abs(loss_train - last_val_loss)
@@ -202,7 +206,7 @@ def train_mode(config):
             print("New lowest MSE, saving model")
             lowest_mse = loss_test
             model.lowest_mse_this_horizon = lowest_mse
-            torch.save(model, save_loc)
+            torch.save(model, model_path)
             # plotVis(test_set.data, predictions, truths)
         if loss_diff <= 0.0075:
             epochs_low_loss_diff += 1
@@ -217,8 +221,8 @@ def train_mode(config):
                 curriculum_epoch_num = 0
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
                 if model.predictions_trained_to < config.max_curric_steps:
-                    train_set, test_set, train_loader, test_loader, validation_loader = \
-                        update_curriculum(train_set, test_set, config, num_workers)
+                    train_sets, test_set, train_loaders, test_loader, validation_loaders = \
+                        update_curriculum(train_sets, test_set, config, num_workers)
                     model.predictions_trained_to += 1
                     print("Training step: " + str(model.predictions_trained_to))
                     model.lowest_mse_this_horizon = 999999
@@ -226,14 +230,6 @@ def train_mode(config):
                     print("MAX CURRICULUM REACHED. CONVERGENCE LIKELY. CONSIDER STOPPING")
 
         last_val_loss = loss_train
-
-        # f1 = metrics_test[1]
-        # if f1 > highest_f1:
-        #     print("New highest f1 score, saving model")
-        #     highest_f1 = f1
-        #     model.highest_test_score = highest_f1
-        #     torch.save(model, model_path)
-        #     # plotVis(test_set.data, predictions, truths)
 
         # val_loss_diff = abs(loss_validate - last_val_loss)
         # last_val_loss = loss_validate
@@ -266,40 +262,45 @@ def test_mode(config):
         json.dump(predictions_json, outfile)
 
 
-def update_curriculum(train_set, test_set, config, num_workers):
-    train_set.prediction_steps += 1
+def update_curriculum(train_sets, test_set, config, num_workers):
+    train_loaders = []
+    validation_loaders = []
     test_set.prediction_steps += 1
-    train_set.data_x, train_set.data_y, train_set.state_length = \
-        preprocess_predict_steps(train_set.original_data, False,
-                                 train_set.prediction_steps,
-                                 config.truth_available, config.test_seg_length)
-    train_set.X = torch.tensor(train_set.data_x)
-    train_set.y = torch.tensor(train_set.data_y)
+    for train_set in train_sets:
+        train_set.prediction_steps += 1
+        train_set.data_x, train_set.data_y, train_set.state_length = \
+            preprocess_predict_steps(train_set.original_data, False,
+                                     train_set.prediction_steps,
+                                     config.truth_available, config.test_seg_length)
+        train_set.X = torch.tensor(train_set.data_x)
+        train_set.y = torch.tensor(train_set.data_y)
+        # Validation loader
+        validation_split = 0
+        dataset_length = len(train_set)
+        indices = list(range(dataset_length))
+        validation_length = int(numpy.floor(validation_split * dataset_length))
+        validation_index = numpy.random.choice(indices, size=validation_length, replace=False)
+        validation_sampler = SequentialSampler(validation_index)
+        validation_loader = DataLoader(train_set, batch_size=config.batch_size, sampler=validation_sampler)
+
+        # Train loader
+        train_index = list(set(indices) - set(validation_index))
+        train_sampler = SequentialSampler(train_index)
+        train_loader = DataLoader(train_set, batch_size=config.batch_size,
+                                  sampler=train_sampler, num_workers=num_workers, persistent_workers=False)
+        train_loaders.append(train_loader)
+        validation_loaders.append(validation_loader)
     test_set.data_x, test_set.data_y, test_set.state_length = \
         preprocess_predict_steps(test_set.original_data, True,
                                  test_set.prediction_steps,
                                  config.truth_available, config.test_seg_length)
     test_set.X = torch.tensor(test_set.data_x)
     test_set.y = torch.tensor(test_set.data_y)
-    # Validation loader
-    validation_split = 0
-    dataset_length = len(train_set)
-    indices = list(range(dataset_length))
-    validation_length = int(numpy.floor(validation_split * dataset_length))
-    validation_index = numpy.random.choice(indices, size=validation_length, replace=False)
-    validation_sampler = SequentialSampler(validation_index)
-    validation_loader = DataLoader(train_set, batch_size=config.batch_size, sampler=validation_sampler)
-
-    # Train loader
-    train_index = list(set(indices) - set(validation_index))
-    train_sampler = SequentialSampler(train_index)
-    train_loader = DataLoader(train_set, batch_size=config.batch_size,
-                              sampler=train_sampler, num_workers=num_workers, persistent_workers=False)
 
     # # Test loader
     test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers, persistent_workers=False)
 
-    return train_set, test_set, train_loader, test_loader, validation_loader
+    return train_sets, test_set, train_loaders, test_loader, validation_loaders
 
 
 def main():

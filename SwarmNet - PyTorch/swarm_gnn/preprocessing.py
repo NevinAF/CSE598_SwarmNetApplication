@@ -35,7 +35,7 @@ def preprocess_csv(data):
 def preprocess_json(data):
     data = numpy.array(data)
     # TODO temporarily ignoring environmental context and fitting to exact environment
-    # data = data[:, :, 0:6]
+    data = data[:, :, 0:6]
 
     return data
 
