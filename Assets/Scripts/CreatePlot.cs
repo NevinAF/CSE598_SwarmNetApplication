@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class CreatePlot : EditorWindow
 {
-	public enum FileFormat { NodeTimeSate = 0, NodeCondTimeState = 1 }
+	public enum FileFormat { NodeTimeSate = 0, NodeCondTimeState = 1, NodePredictSteps = 2 }
 
 	[MenuItem("Window/CreatePlot")]
 	static void Init()
@@ -17,6 +17,7 @@ public class CreatePlot : EditorWindow
 
 	private FileFormat fileFormat;
 	private int sort_type;
+	bool inQuotes = false;
 	private string filepath = null;
 	private string filename = "NONE.json";
 	private GameObject lineprefab = null;
@@ -26,11 +27,12 @@ public class CreatePlot : EditorWindow
 	void OnGUI()
 	{
 		GUILayout.Label("Base Settings", EditorStyles.boldLabel);
-		fileFormat = (FileFormat)GUILayout.Toolbar((int)fileFormat, new string[] { "Ground Truth", "Prediction" });
+		fileFormat = (FileFormat)GUILayout.Toolbar((int)fileFormat, new string[] { "Ground Truth", "Prediction (single steps)", "Prediction (multi step)" });
 		sort_type = GUILayout.Toolbar(sort_type, new string[] { "Agents", "Timestep" });
 
 		Maxtimesteps = EditorGUILayout.IntField("Max timestep: ", Maxtimesteps);
 		MaxAgents = EditorGUILayout.IntField("Max Agents: ", MaxAgents);
+		inQuotes = EditorGUILayout.Toggle("File in quotes?", inQuotes);
 
 		filepath = EditorGUILayout.TextField("File Path", filepath);
 		filename = EditorGUILayout.TextField("File Name", filename);
@@ -48,24 +50,48 @@ public class CreatePlot : EditorWindow
 	private void PlotFrom(string file, FileFormat format, int sort)
     {
 		float[][][] data = null;
+
 		try
 		{
+			string json = File.ReadAllText(file);
+			if (inQuotes) json = json.Substring(1, json.Length - 2);
+			
 			if (format == FileFormat.NodeTimeSate)
-				data = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][]>(File.ReadAllText(file));
+				data = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][]>(json);
 			else
 			{
-				Debug.Log("Reading as 4");
-				float[][][][] temp = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][][]>(File.ReadAllText(file));
+				float[][][][] temp;
+				temp = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][][]>(json);
+
 				data = new float[temp.Length][][];
-				for (int i = 0; i < temp.Length; i++)
+
+				if (format == FileFormat.NodeCondTimeState)
 				{
-					data[i] = new float[temp[i].Length][];
-					for (int j = 0; j < temp[i].Length; j++)
+					for (int i = 0; i < temp.Length; i++)
 					{
-						data[i][j] = new float[temp[i][j][0].Length];
-						for (int k = 0; k < temp[i][j][0].Length; k++)
+						data[i] = new float[temp[i].Length][];
+						for (int j = 0; j < temp[i].Length; j++)
 						{
-							data[i][j][k] = temp[i][j][0][k];
+							data[i][j] = new float[temp[i][j][0].Length];
+							for (int k = 0; k < temp[i][j][0].Length; k++)
+							{
+								data[i][j][k] = temp[i][j][0][k];
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int i = 0; i < temp.Length; i++)
+					{
+						data[i] = new float[temp[i].Length][];
+						for (int j = 0; j < temp[i][0].Length; j++)
+						{
+							data[i][j] = new float[temp[i][0][j].Length];
+							for (int k = 0; k < temp[i][0][j].Length; k++)
+							{
+								data[i][j][k] = temp[i][0][j][k];
+							}
 						}
 					}
 				}
