@@ -40,9 +40,10 @@ def preprocess_json(data):
     return data
 
 
-def preprocess_predict_steps(data, is_test_data, steps, truth_available):
+def preprocess_predict_steps(data, is_test_data, steps, truth_available, test_length):
     if is_test_data is True:
-        data = data[:, :100, ]
+        test_length = min(test_length, data.shape[1])
+        data = data[:, :test_length, ]
     if truth_available:
         truth_ends_at = data.shape[1] - steps + 1
         # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size

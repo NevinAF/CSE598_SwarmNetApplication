@@ -11,11 +11,18 @@ from swarm_gnn.preprocessing import preprocess_csv, preprocess_json, preprocess_
 
 
 # Retrieve data
-def retrieve_dataset(config, scaler, predict_steps):
-    train_dataset = SimulationDataset(config.train_path, False, scaler, config, predict_steps)
-    test_dataset = SimulationDataset(config.test_path, True, scaler, config, predict_steps)
+def retrieve_train_sets(paths, config, scaler, predict_steps):
+    train_datasets = []
+    for path in paths:
+        train_dataset = SimulationDataset(path, False, scaler, config, predict_steps)
+        train_datasets.append(train_dataset)
 
-    return train_dataset, test_dataset
+    return train_datasets
+
+
+def retrieve_test_set(config, scaler, predict_steps):
+    test_dataset = SimulationDataset(config.test_path, True, scaler, config, predict_steps)
+    return test_dataset
 
 
 class SimulationDataset(Dataset):
@@ -43,7 +50,8 @@ class SimulationDataset(Dataset):
         # data = data[45:]
         self.data_x, self.data_y, self.state_length = preprocess_predict_steps(self.original_data, testData,
                                                                                self.prediction_steps,
-                                                                               config.truth_available)
+                                                                               config.truth_available,
+                                                                               config.test_seg_length)
         # Scaler incorporated but probably will not be used for some time
         self.scaler = scaler
         # If using scikit scaler, scale data (training data uses specified scaler, testing data uses training scaler)
@@ -52,7 +60,7 @@ class SimulationDataset(Dataset):
         # print(self.y[0])
 
     def __len__(self):
-        return len(self.X)-self.prediction_steps
+        return len(self.X) - self.prediction_steps
 
     def __getitem__(self, index):
         return self.X[index], self.y[index]

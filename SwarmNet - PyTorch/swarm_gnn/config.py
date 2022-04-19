@@ -6,9 +6,10 @@ class ExperimentConfig:
     def __init__(self, config_file):
         config = yaml.safe_load(open(config_file, 'r'))
         self.prediction_steps = config["general"]["prediction_steps"]
+        self.test_seg_length = config["general"]["test_seg_length"]
 
         # Location of train dataset
-        self.train_path = config["train"]["data_path"]
+        self.train_paths = config["train"]["data_paths"]
         self.loss_name = config["train"]["loss"]
         self.epochs = config["train"]["n_epochs"]
         self.batch_size = config["train"]["batch_size"]
@@ -16,6 +17,7 @@ class ExperimentConfig:
         # Add noise to training data
         self.add_noise_train = config["train"]["add_noise"]
         self.curriculum = config["train"]["curriculum"]
+        self.max_curric_steps = config["train"]["max_curric_steps"]
 
         # Location of test data
         self.test_path = config["test"]["data_path"]

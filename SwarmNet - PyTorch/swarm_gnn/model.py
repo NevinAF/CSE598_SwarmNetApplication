@@ -17,9 +17,9 @@ class SwarmNet(nn.Module):
     def __init__(self, agent_state_vector_length):
         super(SwarmNet, self).__init__()
         # state vector, num output filters, kernel size, groups= state vector
-        self.conv_layer1 = nn.Conv1d(agent_state_vector_length, 16, kernel_size=3, groups=1)
-        self.conv_layer2 = nn.Conv1d(16, 32, kernel_size=3, groups=1)
-        self.conv_layer3 = nn.Conv1d(32, 32, kernel_size=3, groups=1)
+        self.conv_layer1 = nn.Conv1d(agent_state_vector_length, 32, kernel_size=3, groups=1)
+        self.conv_layer2 = nn.Conv1d(32, 64, kernel_size=3, groups=1)
+        self.conv_layer3 = nn.Conv1d(64, 32, kernel_size=3, groups=1)
         self.edge_state_mlp = nn.Linear(32 * 2, 32)
         self.edge_agg_mlp = nn.Linear(32, 32)
         self.node_updater_mlp = nn.Linear(32 * 2, 32)
@@ -30,121 +30,60 @@ class SwarmNet(nn.Module):
         self.lowest_mse_this_horizon = 999999999999
 
     def conv_1d(self, x, predict_step):
-        # Condense by agent individually. Now only requires set-length state vector as input while agent numbers can
-        #   vary (between runs. Agent count must be static once started).
-        #   May also allow for eventually handling dynamically spawning agents
-        condensed_agents_list = []
-        # On first prediction, convolve over all steps for agent
         if predict_step == 0:
-            for agent in x:
-                agent_transpose = torch.transpose(agent, 0, 1)
-                condense_1 = self.conv_layer1(agent_transpose)
-                condense_1 = self.relu(condense_1)
-                condense_2 = self.conv_layer2(condense_1)
-                condense_2 = self.relu(condense_2)
-                condense_3 = self.conv_layer3(condense_2)
-                # TODO often don't see activation on last layer. Unsure if holds when moving from one type of layer to
-                #   another. Possibly remove this in future
-                condense_3 = self.relu(condense_3)
-                # Reshape into [Condensed time-steps, condensed state vector]
-                condense_3 = torch.transpose(condense_3, 0, 1)
-                condensed_agents_list.append(condense_3)
+            agent_transpose = torch.transpose(x, 1, 2)
+            condense_1 = self.conv_layer1(agent_transpose)
+            condense_1 = self.relu(condense_1)
+            condense_2 = self.conv_layer2(condense_1)
+            condense_2 = self.relu(condense_2)
+            condense_3 = self.conv_layer3(condense_2)
+            condense_3 = self.relu(condense_3)
+            # Reshape into [agent, condensed time-step, condensed state vector]
+            condense_3 = torch.transpose(condense_3, 1, 2)
+            return condense_3
         else:
             # Convolve over each window from previous prediction steps
-            for step in x:
-                local_agent = []
-                for agent in step:
-                    agent_transpose = torch.transpose(agent, 0, 1)
-                    condense_1 = self.conv_layer1(agent_transpose.float())
-                    condense_1 = self.relu(condense_1)
-                    condense_2 = self.conv_layer2(condense_1)
-                    condense_2 = self.relu(condense_2)
-                    condense_3 = self.conv_layer3(condense_2)
-                    # TODO often don't see activation on last layer. Unsure if holds when moving from one type of
-                    #  layer to another. Possibly remove this in future
-                    condense_3 = self.relu(condense_3)
-                    # Reshape into [Condensed time-steps, condensed state vector]
-                    condense_3 = torch.transpose(condense_3, 0, 1)
-                    local_agent.append(torch.squeeze(condense_3))
-                local_agent = torch.stack(local_agent)
-                test = local_agent.tolist()
-                condensed_agents_list.append(local_agent)
+            agent_transpose = torch.transpose(x, 2, 3)
+            num_agents = x.shape[0]
+            num_steps = x.shape[1]
+            agent_transpose = torch.flatten(agent_transpose, start_dim=0, end_dim=1).float()
+            condense_1 = self.conv_layer1(agent_transpose)
+            condense_1 = self.relu(condense_1)
+            condense_2 = self.conv_layer2(condense_1)
+            condense_2 = self.relu(condense_2)
+            condense_3 = self.conv_layer3(condense_2)
+            condense_3 = self.relu(condense_3)
+            # Reshape into [agent, condensed time-step, condensed state vector]
+            condense_3 = torch.reshape(condense_3, [num_agents, num_steps, condense_3.shape[1]])
+            return condense_3
 
-        # Condensed to shape [Agents, condensed time-steps, condensed_state_length]
-        condensed_agents = torch.stack(condensed_agents_list)
-
-        return condensed_agents
-
-    # TODO given that the predictions for each condensed steps are independent and that this is quite slow for a lot
-    #   of steps, multiprocessing might be a good thing to implement here. Divide steps by number of available cores,
-    #   run calculations, wait for all to return, condense in proper order. Issue: will this break autograd graph?
     def graph_conv(self, condensed_steps):
-        predictions = []
-        # For every condensed step
-        steps = 0
-        for step in condensed_steps:
-            updated_nodes = []
-            steps += 1
-            # print(steps)
-            # For every node
-            for i in range(0, len(step)):
-                node_i = step[i]
-                agg_edge = torch.zeros(len(node_i))
-                agg_edge = agg_edge.to(device)
-                # For every other node
-                for j in range(0, len(step)):
-                    # Ignore node if same node
-                    if i == j:
-                        continue
-                    node_j = step[j]
-                    # Message from node j to node i
-                    edge_j_i = torch.concat((node_j, node_i))
-                    # Edge state from node j to node i
-                    edge_j_i = self.edge_state_mlp(edge_j_i)
-                    edge_j_i = self.relu(edge_j_i)
-                    # Aggregate all incoming edges
-                    agg_edge = torch.add(agg_edge, edge_j_i)
-                # Aggregated edge state from all node j to node i
-                agg_edge = self.edge_agg_mlp(agg_edge)
-                agg_edge = self.relu(agg_edge)
-                # Update node i and maintain in separate list to not affect messages between other nodes in this conv
-                i_updated = torch.concat((node_i, agg_edge))
-                i_updated = self.node_updater_mlp(i_updated)
-                i_updated = self.relu(i_updated)
-                updated_nodes.append(i_updated)
-            updated_nodes = torch.stack(updated_nodes)
-            predictions.append(updated_nodes)
-        # Shape [time-step, agent, predicted condensed state]
-        predictions = torch.stack(predictions)
-        return predictions
+        num_nodes = condensed_steps.shape[1]
+        outgoing_messages = torch.repeat_interleave(torch.unsqueeze(
+            condensed_steps, 2), num_nodes, dim=2)
+        incoming_messages = torch.repeat_interleave(torch.unsqueeze(
+            condensed_steps, 1), num_nodes, dim=1)
+        # Shape [Agent, incoming agent, concatenated state vectors]
+        node_msgs = torch.concat([incoming_messages, outgoing_messages], dim=-1)
+        edges = self.edge_state_mlp(node_msgs)
+        edges = self.relu(edges)
+        agg_edges = torch.sum(edges, dim=2)
+        agg_edges = self.edge_agg_mlp(agg_edges)
+        agg_edges = self.relu(agg_edges)
+        updated_nodes = torch.concat([condensed_steps, agg_edges], dim=-1)
+        updated_nodes = self.node_updater_mlp(updated_nodes)
+        updated_nodes = self.relu(updated_nodes)
+        return updated_nodes
 
     def decode(self, predict, x, predict_step):
         original = x
-        decoded_steps = []
-        # For every predicted time-step
-        for t in range(0, len(predict)):
-            step = predict[t]
-            test_predict = predict.tolist()
-            decoded_states = []
-            # For every agent
-            for i in range(0, len(step)):
-                node_i = predict[t][i]
-                # Decode back into original dimensionality (agent state vector)
-                decoded_i = self.node_decoder_mlp(node_i)
-                test = original.tolist()
-                # First step, the original step is the step for the current agent + 6 due to 1d conv filter
-                #   size/num layers
-                if predict_step == 0:
-                    original_state = original[i][6 + t]
-                # Second step, it is the last prediction
-                else:
-                    original_state = original[i][t][6]
-                original_state_test = original_state.tolist()
-                # Decoded state is prediction of change. Add to state prediction stemmed from
-                decoded_states.append(torch.add(original_state, decoded_i))
-            decoded_states = torch.stack(decoded_states)
-            decoded_steps.append(decoded_states)
-        decoded_steps = torch.stack(decoded_steps)
+        original = torch.swapaxes(original, 0, 1)
+        decoded_states = self.node_decoder_mlp(predict)
+        if predict_step == 0:
+            original_states = original[6:, :, :]
+        else:
+            original_states = original[:, :, 6, :]
+        decoded_steps = torch.add(original_states, decoded_states)
         return decoded_steps
 
     def forward(self, x, predict_steps):
