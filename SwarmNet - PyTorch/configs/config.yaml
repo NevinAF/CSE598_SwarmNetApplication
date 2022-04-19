@@ -1,13 +1,12 @@
 general:
-  prediction_steps: 40
+  prediction_steps: 10
   test_seg_length: 500
 
 train:
   n_epochs: 20000000
-  batch_size: 25
+  batch_size: 50
   data_paths:
   - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
-  - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_2.json'
   loss: "mse"
   optimizer: "adam"
   env_width: 1400
@@ -18,7 +17,7 @@ train:
   max_curric_steps: 30
 
 test:
-  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
+  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_2.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -32,4 +31,4 @@ model:
   mode: "test"
   # Create new model for training or train existing model
   load_train: False
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model_15_step.pkl'
+  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
