@@ -1,5 +1,5 @@
 general:
-  prediction_steps: 50
+  prediction_steps: 1
   test_seg_length: 500
 
 train:
@@ -26,10 +26,10 @@ test:
 
 model:
   name: "SwarmNet"
-  save_path: 'C:\Users\ahard_000\Documents\ASU stuff'
-  save_strategy: "/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl"
+  save_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
+  save_strategy: ""
   # Train model or test existing model
-  mode: "test"
+  mode: "train"
   # Create new model for training or train existing model
   load_train: False
   load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model_12_step.pkl'

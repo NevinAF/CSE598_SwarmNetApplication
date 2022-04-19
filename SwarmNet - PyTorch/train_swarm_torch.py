@@ -1,6 +1,7 @@
 import json
 import multiprocessing
 import os
+import random
 import time
 
 import numpy
@@ -25,35 +26,44 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
     loss_list = []
     predictions = []
     truths = []
-
+    batches = []
+    # TODO write custom dataloader
+    # Since data relies on other data in the same set, use multiple loaders with their own batches
     for loader in loaders:
-        for batch, (X, y) in enumerate(loader):
-            if X.shape[0] < 7:
-                continue
-            optimizer.zero_grad()
-            X = X.to(device)
-            y = y[6:]
-            y = y.to(device)
+        batch_set = list(loader)
+        # Merge all batches into on set of batches, each batch only containing samples from one dataset
+        batches.extend(batch_set)
+    # Shuffle batches
+    random.shuffle(batches)
+    for batch in batches:
+        X = batch[0]
+        y = batch[1]
+        if X.shape[0] < 7:
+            continue
+        optimizer.zero_grad()
+        X = X.to(device)
+        y = y[6:]
+        y = y.to(device)
 
-            # Forward pass
-            y_pred = model(X.float(), loader.dataset.prediction_steps)
-            test = y_pred.tolist()
-            test2 = y.float().tolist()
-            loss = loss_fcn(y_pred.float(), y.float())
-            # truth_list = y_pred.tolist()
-            # if batch % 10 == 0:
-            #     print(loss)
+        # Forward pass
+        y_pred = model(X.float(), loader.dataset.prediction_steps)
+        test = y_pred.tolist()
+        test2 = y.float().tolist()
+        loss = loss_fcn(y_pred.float(), y.float())
+        # truth_list = y_pred.tolist()
+        # if batch % 10 == 0:
+        #     print(loss)
 
-            # Backward pass
-            loss.backward()
-            optimizer.step()
-            y_pred_detach = y_pred.detach()
-            y_detach = y.detach()
-            predictions.append(y_pred_detach.tolist())
-            truths.append(y_detach.tolist())
+        # Backward pass
+        loss.backward()
+        optimizer.step()
+        y_pred_detach = y_pred.detach()
+        y_detach = y.detach()
+        predictions.append(y_pred_detach.tolist())
+        truths.append(y_detach.tolist())
 
-            # Store losses for epoch
-            loss_list.append(loss.cpu().item())
+        # Store losses for epoch
+        loss_list.append(loss.cpu().item())
     predictions = numpy.concatenate(predictions)
     truths = numpy.concatenate(truths)
     # metrics = utils.metrics(predictions, truths)
