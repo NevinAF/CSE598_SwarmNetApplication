@@ -71,6 +71,7 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
     return loss_list
 
 
+@torch.no_grad()
 def validate(epoch, model, dataset, optimizer, loss_fcn, config):
     model.eval()
     loss_list = []
@@ -97,6 +98,7 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
     return loss_list
 
 
+@torch.no_grad()
 def test(epoch, model, dataset, loss_fcn, config):
     model.eval()
     losses = []
@@ -267,9 +269,8 @@ def test_mode(config):
     predictions = numpy.swapaxes(predictions, 0, 1)
     truths = numpy.swapaxes(truths, 0, 1)
     print(numpy.mean(loss_test))
-    predictions_json = json.dumps(predictions.tolist())
     with open('predictions.json', 'w') as outfile:
-        json.dump(predictions_json, outfile)
+        json.dump(predictions.tolist(), outfile)
 
 
 def update_curriculum(train_sets, test_set, config, num_workers):
