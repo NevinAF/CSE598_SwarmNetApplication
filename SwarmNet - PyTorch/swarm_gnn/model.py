@@ -6,7 +6,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def retrieve_model(path):
-    model = torch.load(path)
+    model = torch.load(path, map_location=device)
     model.eval()
     return model
 

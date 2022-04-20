@@ -18,6 +18,7 @@ class ExperimentConfig:
         self.add_noise_train = config["train"]["add_noise"]
         self.curriculum = config["train"]["curriculum"]
         self.max_curric_steps = config["train"]["max_curric_steps"]
+        self.min_epochs_per_curric = config['train']['min_epochs_per_curric']
 
         # Location of test data
         self.test_path = config["test"]["data_path"]

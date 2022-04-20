@@ -1,17 +1,17 @@
 general:
-  prediction_steps: 40
+  prediction_steps: 1
   test_seg_length: 500
 
 train:
   n_epochs: 20000000
   batch_size: 25
   data_paths:
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_10_1.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_10_2.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_30_1.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_30_2.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_50_1.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_100_1.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_10_1.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_10_2.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_30_1.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_30_2.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_50_1.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData_100_1.json'
   loss: "mse"
   optimizer: "adam"
   env_width: 1400
@@ -20,9 +20,10 @@ train:
   sample_size: "max"
   curriculum: True
   max_curric_steps: 30
+  min_epochs_per_curric: 10
 
 test:
-  data_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData.json'
+  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -30,10 +31,10 @@ test:
 
 model:
   name: "SwarmNet"
-  save_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model.pkl'
+  save_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
   save_strategy: ""
   # Train model or test existing model
-  mode: "test"
+  mode: "train"
   # Create new model for training or train existing model
   load_train: False
-  load_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model_experimental.pkl'
+  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model_experimental.pkl'

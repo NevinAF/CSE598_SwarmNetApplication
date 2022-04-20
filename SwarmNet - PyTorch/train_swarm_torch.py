@@ -17,35 +17,32 @@ from swarm_gnn.preprocessing import preprocess_predict_steps
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def train(epoch, model, loaders, optimizer, loss_fcn, config):
+def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps):
     model.train()
 
     loss_list = []
     # predictions = []
     # truths = []
-    batches = []
+    # batches = []
     # TODO write custom dataloader
     # Since data relies on other data in the same set, use multiple loaders with their own batches
-    for loader in loaders:
-        batch_set = list(loader)
-        # Merge all batches into on set of batches, each batch only containing samples from one dataset
-        batches.extend(batch_set)
-    # Shuffle batches
-    random.shuffle(batches)
     for batch in batches:
         X = batch[0]
         y = batch[1]
         if X.shape[0] < 7:
             continue
+        # original_y = y.tolist()
         optimizer.zero_grad()
         X = X.to(device)
         y = y[6:]
         y = y.to(device)
+        # original_x = X.tolist()
+        # new_y = y.tolist()
 
         # Forward pass
-        y_pred = model(X.float(), loader.dataset.prediction_steps)
-        test = y_pred.tolist()
-        test2 = y.float().tolist()
+        y_pred = model(X.float(), prediction_steps)
+        # test = y_pred.tolist()
+        # test2 = y.float().tolist()
         loss = loss_fcn(y_pred.float(), y.float())
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
@@ -54,8 +51,8 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
         # Backward pass
         loss.backward()
         optimizer.step()
-        y_pred_detach = y_pred.detach()
-        y_detach = y.detach()
+        # y_pred_detach = y_pred.detach()
+        # y_detach = y.detach()
         # predictions.append(y_pred_detach.tolist())
         # truths.append(y_detach.tolist())
 
@@ -181,8 +178,16 @@ def train_mode(config):
     epochs_low_loss_diff = 0
     last_val_loss = 999999
     last_test_loss = 999999
-    min_epochs = 10
+    min_epochs = config.min_epochs_per_curric
     curriculum_epoch_num = 0
+    batches = []
+    for loader in train_loaders:
+        batch_set = list(loader)
+        # Merge all batches into on set of batches, each batch only containing samples from one dataset
+        batches.extend(batch_set)
+    # Shuffle batches
+    random.shuffle(batches)
+    model_checkpoint = model.state_dict()
 
     # Epoch Training loop
     for epoch in range(config.epochs):
@@ -191,7 +196,7 @@ def train_mode(config):
         time_start = time.time()
         print(epoch)
         # Train for one epoch
-        loss_train = train(epoch, model, train_loaders, optimizer, loss_fcn, config)
+        loss_train = train(epoch, model, batches, optimizer, loss_fcn, loader.dataset.prediction_steps)
         loss_train = numpy.mean(loss_train)
         print(loss_train)
         loss_diff = abs(loss_train - last_val_loss)
@@ -216,6 +221,7 @@ def train_mode(config):
             lowest_mse = loss_test
             model.lowest_mse_this_horizon = lowest_mse
             torch.save(model, model_path)
+            model_checkpoint = model.state_dict()
             # plotVis(test_set.data, predictions, truths)
         if loss_diff <= 0.0075:
             epochs_low_loss_diff += 1
@@ -230,8 +236,16 @@ def train_mode(config):
                 curriculum_epoch_num = 0
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
                 if model.predictions_trained_to < config.max_curric_steps:
+                    model.load_state_dict(model_checkpoint)
                     train_sets, test_set, train_loaders, test_loader, validation_loaders = \
                         update_curriculum(train_sets, test_set, config, num_workers)
+                    batches = []
+                    for loader in train_loaders:
+                        batch_set = list(loader)
+                        # Merge all batches into on set of batches, each batch only containing samples from one dataset
+                        batches.extend(batch_set)
+                    # Shuffle batches
+                    random.shuffle(batches)
                     # TODO Start from model with lowest test MSE
                     # model = retrieve_model(model_path)
                     model.predictions_trained_to += 1
