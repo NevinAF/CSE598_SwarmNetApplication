@@ -14,6 +14,7 @@ public class Flock : MonoBehaviour
 	public GameObject predictPrefab;
 	public bool enablePrediction;
 	public bool obstaclesAsNodes = false;
+	public int cap_interval = 12;
 
 	[Tooltip("Your general feesh flock agent.")]
 	public Feesh feeshPrefab;
@@ -178,7 +179,7 @@ public class Flock : MonoBehaviour
 	void FixedUpdate()
 	{
 		Feesh.int_count++;
-		if (Feesh.int_count > Feesh.CAP_INTERVAL)
+		if (Feesh.int_count > cap_interval)
 		{
 			Feesh.int_count = 0;
 			if (pTimeline != null && timestep_counter < pTimeline[0].Length)
@@ -216,7 +217,7 @@ public class Flock : MonoBehaviour
 			feesh.Move(nearbyObstacleColliders, direction); //Move in direction
 		}
 
-		if (obstaclesAsNodes && (int_count == CAP_INTERVAL))
+		if (obstaclesAsNodes && (int_count == cap_interval))
 			for (int i = 0; i < obstacles.Count; i++)
 				obstacleTimesteps[i].Add(Get7PointTimestep(obstacles[i].bounds.center, Vector3.zero, obstacles[i].radius));
 		//if (newLeader != null)

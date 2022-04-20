@@ -7,8 +7,30 @@ using UnityEngine;
 
 public class CreatePlot : EditorWindow
 {
-	public enum FileFormat { NodeTimeSate = 0, NodeCondTimeState = 1, NodePredictSteps = 2 }
 	public enum SortType { Agent, Timesteps }
+
+	[MenuItem("Assets/Create/FilePlotData")]
+	public static void CreateMyAsset()
+	{
+		CreateAssetWithName();
+	}
+
+	public static void CreateAssetWithName(string filename = "NewScripableObject")
+	{
+		string filepath = "Assets/FilePlotData/" + filename + ".asset";
+
+		FilePlotData asset = CreateInstance<FilePlotData>();
+
+		Directory.CreateDirectory(Path.GetDirectoryName(filepath));
+
+		asset.filename = Path.GetFileName(filename);
+		AssetDatabase.CreateAsset(asset, filepath);
+		AssetDatabase.SaveAssets();
+
+		EditorUtility.FocusProjectWindow();
+
+		Selection.activeObject = asset;
+	}
 
 	[MenuItem("Window/CreatePlot")]
 	static void Init()
@@ -16,14 +38,13 @@ public class CreatePlot : EditorWindow
 		GetWindow<CreatePlot>(false, "URP->HDRP Wizard").Show();
 	}
 
-	public FileSettings[] filedatas;
+	public FilePlotData[] filedatas;
 	public string root_filepath;
 	public SortType sort_type;
 	public int condensedIndex;
 	public int Maxtimesteps = int.MaxValue;
 	public int MaxAgents = int.MaxValue;
-
-	private FileSettings filedata { get => filedatas[0]; }
+	public string newObjectName;
 
 	Editor editor;
 
@@ -33,8 +54,10 @@ public class CreatePlot : EditorWindow
 		if (editor) { editor.OnInspectorGUI(); }
 	}
 
-	private void PlotFrom(string file, FileFormat format, int sort)
+	internal void PlotFrom(FilePlotData filedata)
 	{
+		string file = root_filepath + "/" + filedata.filename;
+		int sort = (int)sort_type;
 		float[][][] data = null;
 
 		try
@@ -42,7 +65,7 @@ public class CreatePlot : EditorWindow
 			string json = File.ReadAllText(file);
 			if (filedata.inQuotes) json = json.Substring(1, json.Length - 2);
 			
-			if (format == FileFormat.NodeTimeSate)
+			if (filedata.fileFormat == FilePlotData.FileFormat.NodeTimeSate)
 				data = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][]>(json);
 			else
 			{
@@ -51,7 +74,7 @@ public class CreatePlot : EditorWindow
 
 				data = new float[temp.Length][][];
 
-				if (format == FileFormat.NodeCondTimeState)
+				if (filedata.fileFormat == FilePlotData.FileFormat.NodeCondTimeState)
 				{
 					for (int i = 0; i < temp.Length; i++)
 					{
@@ -71,7 +94,6 @@ public class CreatePlot : EditorWindow
 					for (int i = 0; i < temp.Length; i++)
 					{
 						data[i] = new float[temp[i].Length][];
-						Debug.Log("Agent " + i + ", len: " + temp[i][condensedIndex].Length);
 						string s = "";
 						for (int j = 0; j < temp[i][condensedIndex].Length; j++)
 						{
@@ -148,11 +170,6 @@ public class CreatePlot : EditorWindow
 		}
 	}
 
-	public void Plot()
-	{
-		PlotFrom(root_filepath + "/" + filedata.filename, filedata.fileFormat, (int)sort_type);
-	}
-
 	public static class JsonArrayReader
 	{
 		public static T[] FromJsonArray<T>(string json)
@@ -164,15 +181,6 @@ public class CreatePlot : EditorWindow
 
 		[Serializable]
 		public class Wrapper<T> { public T[] array; }
-	}
-
-	[Serializable]
-	public struct FileSettings
-	{
-		public FileFormat fileFormat;
-		public bool inQuotes;
-		public string filename;
-		public GameObject lineprefab;
 	}
 }
 
@@ -190,11 +198,19 @@ public class CreatePlotDrawer : Editor
 
 
 		if (GUILayout.Button("Autoset Path")) serializedObject.FindProperty("root_filepath").stringValue = Application.dataPath;
-
+		if (GUILayout.Button("Create New Fileasset")) CreatePlot.CreateAssetWithName(ploter.newObjectName);
 		GUILayout.Space(20);
-		if (GUILayout.Button("Plot!"))
+		if (GUILayout.Button("Plot First!"))
 		{
-			ploter.Plot();
+			ploter.PlotFrom(ploter.filedatas[0]);
+		}
+
+		if (GUILayout.Button("Plot All!"))
+		{
+			for (int i = 0; i < ploter.filedatas.Length; i++)
+			{
+				ploter.PlotFrom(ploter.filedatas[i]);
+			}
 		}
 
 		serializedObject.ApplyModifiedProperties();

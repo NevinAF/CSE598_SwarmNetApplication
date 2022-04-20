@@ -6,7 +6,6 @@ using UnityEngine;
 public class Feesh : MonoBehaviour
 {
 	public const int OBSTACLE_COUNT = 4;
-	public const int CAP_INTERVAL = 12;
 
 	public static int int_count = 0;
 
@@ -51,7 +50,7 @@ public class Feesh : MonoBehaviour
 		transform.forward = velocity;
 		transform.position += velocity * Time.fixedDeltaTime; //Add our velocity to our current position (framerate independent)
 
-		if (int_count == CAP_INTERVAL)
+		if (int_count == thisFlock.cap_interval)
 			timesteps.Add(GetTimestepValues(nearbyObstacleColliders, velocity));
 	}
 
