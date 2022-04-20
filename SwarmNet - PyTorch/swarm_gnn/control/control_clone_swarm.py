@@ -10,7 +10,7 @@ def start(model_path):
 
 
 @torch.no_grad()
-def control(last_steps, model):
-    control_vel = model.forward(last_steps)
+def control(last_steps, model, predict_steps):
+    control_vel = model.forward(last_steps, steps)
 
     return control_vel
