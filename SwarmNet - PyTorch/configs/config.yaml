@@ -23,7 +23,7 @@ train:
   min_epochs_per_curric: 10
 
 test:
-  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/SwarmData.json'
+  data_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData.json'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -34,7 +34,7 @@ model:
   save_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
   save_strategy: ""
   # Train model or test existing model
-  mode: "train"
+  mode: "test"
   # Create new model for training or train existing model
   load_train: False
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model_experimental.pkl'
+  load_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model_experimental.pkl'

@@ -34,7 +34,7 @@ def preprocess_csv(data):
 
 def preprocess_json(data):
     data = numpy.array(data)
-    # TODO temporarily ignoring environmental context and fitting to exact environment
+    # TODO extend to include radius or environmental context
     data = data[:, :, 0:6]
 
     return data
