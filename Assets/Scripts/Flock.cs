@@ -13,6 +13,7 @@ public class Flock : MonoBehaviour
 	public int seed;
 	public GameObject predictPrefab;
 	public bool enablePrediction;
+	public bool obstaclesAsNodes = false;
 
 	[Tooltip("Your general feesh flock agent.")]
 	public Feesh feeshPrefab;
@@ -94,10 +95,10 @@ public class Flock : MonoBehaviour
 
 	void Start()
 	{
+		JSON_PATH = Application.dataPath + "/.." + "/SwarmData.json";
+
 		if (enablePrediction)
 		{
-			JSON_PATH = Application.dataPath + "/.." + "/SwarmData.json";
-
 			try
 			{
 				using (StreamReader r = new StreamReader(JSON_PATH))
@@ -143,6 +144,7 @@ public class Flock : MonoBehaviour
 			);
 			newLeader.InitializeFlock(this);
 		}
+
 		for (int i = 0; i < flockCount; i++)
 		{ //For the number of feesh we want
 			Feesh newFeesh = Instantiate(
@@ -154,6 +156,22 @@ public class Flock : MonoBehaviour
 			newFeesh.name = "feesh " + i;
 			newFeesh.InitializeFlock(this); //This instance of the Flock class is the Flock this feesh belongs to
 			feeshes.Add(newFeesh);
+		}
+
+		if (obstaclesAsNodes)
+		{
+			SphereCollider[] collider = FindObjectsOfType<SphereCollider>();
+			Debug.Log(collider.Length);
+			obstacles = new List<SphereCollider>();
+			for (int i = 0; i < collider.Length; i++)
+			{
+				if (ObsticleLayer == (ObsticleLayer | (1 << collider[i].gameObject.layer)))
+					obstacles.Add(collider[i]);
+			}
+
+			obstacleTimesteps = new List<float[]>[obstacles.Count];
+			for (int i = 0; i < obstacles.Count; i++)
+				obstacleTimesteps[i] = new List<float[]>();
 		}
 	}
 
@@ -197,6 +215,10 @@ public class Flock : MonoBehaviour
 			}
 			feesh.Move(nearbyObstacleColliders, direction); //Move in direction
 		}
+
+		if (obstaclesAsNodes && (int_count == CAP_INTERVAL))
+			for (int i = 0; i < obstacles.Count; i++)
+				obstacleTimesteps[i].Add(Get7PointTimestep(obstacles[i].bounds.center, Vector3.zero, obstacles[i].radius));
 		//if (newLeader != null)
 		//{
 		//	newLeader.Move(nearbyObstacleColliders, newLeader.transform.forward);
@@ -267,6 +289,9 @@ public class Flock : MonoBehaviour
 		return nearby;
 	}
 
+	private List<float[]>[] obstacleTimesteps;
+	private List<SphereCollider> obstacles;
+
 	private void OnDestroy()
 	{
 		string json = "[\n";
@@ -275,6 +300,15 @@ public class Flock : MonoBehaviour
 		{
 			json += feeshes[i].TimeToString() + ",\n";
 		}
+
+		if (obstaclesAsNodes)
+		{
+			for (int i = 0; i < obstacles.Count; i++)
+			{
+				json += TimeToString(obstacleTimesteps[i]) + ",\n";
+			}
+		}
+
 		json = json.Substring(0, json.Length - 2);
 		json += "\n]";
 
@@ -285,5 +319,4 @@ public class Flock : MonoBehaviour
 			writetext.WriteLine(json);
 		}
 	}
-
 }

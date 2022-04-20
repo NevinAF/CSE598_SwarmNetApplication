@@ -15,7 +15,7 @@ public class Feesh : MonoBehaviour
 	Collider feeshCollider;
 	int nearbyCount = 0;
 
-	private List<PVector[]> timesteps;
+	private List<float[]> timesteps;
 
 	public Collider getFeeshCollider {
 		get {
@@ -34,7 +34,7 @@ public class Feesh : MonoBehaviour
 	void Start()
 	{
 		feeshCollider = GetComponent<Collider>();
-		timesteps = new List<PVector[]>();
+		timesteps = new List<float[]>();
 	}
 
 	public int NearbyCount { 
@@ -55,32 +55,46 @@ public class Feesh : MonoBehaviour
 			timesteps.Add(GetTimestepValues(nearbyObstacleColliders, velocity));
 	}
 
-	public PVector[] GetTimestepValues(Collider[] nearbyObstacleColliders, Vector3 velocity)
+	public float[] GetTimestepValues(Collider[] nearbyObstacleColliders, Vector3 velocity)
 	{
+		if (thisFlock.obstaclesAsNodes)
+		{
+			return Get7PointTimestep(transform.position, velocity, feeshCollider.bounds.extents.magnitude);
+		}
+
 		PVector[] result = new PVector[OBSTACLE_COUNT + 2];
 
 		//result[0] = new PVector(transform.position);
-		result[0] = new PVector()
-		{
-			theta = transform.position.x,
-			phi = transform.position.y,
-			r = transform.position.z
-		};
+		result[0] = PVector.AsVector3(transform.position);
 		result[1] = new PVector(velocity);
 
 		Array.Copy(GetObsticles(nearbyObstacleColliders), 0, result, 2, OBSTACLE_COUNT);
 
-		return result;
+		float[] timestep = new float[result.Length * 3];
+
+		for (int i = 0; i < result.Length; i++)
+		{
+			timestep[i * 3 + 0] = result[i].theta;
+			timestep[i * 3 + 1] = result[i].phi;
+			timestep[i * 3 + 2] = result[i].r;
+		}
+
+		return timestep;
 	}
 
 	public string TimeToString()
 	{
+		return TimeToString(timesteps);
+	}
+
+	public static string TimeToString(List<float[]> time)
+	{
 		string result = "\t[\n";
-		foreach (PVector[] step in timesteps)
+		foreach (float[] step in time)
 		{
 			result += "\t\t[";
-			foreach(PVector pVector in step)
-				result += string.Format("{0}, {1}, {2}, ", pVector.theta, pVector.phi, pVector.r);
+			foreach (float f in step)
+				result += string.Format("{0}, ", f);
 			result = result.Substring(0, result.Length - 2);
 			result += "],\n";
 		}
@@ -115,6 +129,22 @@ public class Feesh : MonoBehaviour
 		return result;
 	}
 
+
+	public static float[] Get7PointTimestep(Vector3 pos, Vector3 vel, float radius)
+	{
+		PVector polarVel = new PVector(vel);
+
+		return new float[7] {
+			pos.x,
+			pos.y,
+			pos.z,
+			polarVel.theta,
+			polarVel.phi,
+			polarVel.r,
+			radius
+		};
+	}
+
 	[Serializable]
 	public struct PVector
 	{
@@ -123,6 +153,9 @@ public class Feesh : MonoBehaviour
 			r = vector3.magnitude;
 			theta = Mathf.Acos(vector3.z / r);
 			phi = Mathf.Atan2(vector3.y, vector3.x);
+
+			if (theta == float.NaN) theta = 0.0f;
+			if (phi == float.NaN) phi = 0.0f;
 		}
 
 		public float theta;
@@ -138,13 +171,23 @@ public class Feesh : MonoBehaviour
 			);
 		}
 
-		public static  Vector3 GetVector3(float theta, float phi, float r)
+		public static Vector3 GetVector3(float theta, float phi, float r)
 		{
 			return new Vector3(
 				r * Mathf.Cos(phi) * Mathf.Sin(theta),
 				r * Mathf.Sin(phi) * Mathf.Sin(theta),
 				r * Mathf.Cos(theta)
 			);
+		}
+
+		public static PVector AsVector3(Vector3 vector)
+		{
+			return new PVector()
+			{
+				theta = vector.x,
+				phi = vector.y,
+				r = vector.z
+			};
 		}
 	}
 }
