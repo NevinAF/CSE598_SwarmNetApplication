@@ -3,8 +3,6 @@ import torch
 from torch import nn
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# TODO testing
-device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
 
 def retrieve_model(path):

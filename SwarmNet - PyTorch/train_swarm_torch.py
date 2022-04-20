@@ -16,16 +16,13 @@ from swarm_gnn.preprocessing import preprocess_predict_steps
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-# TODO testing
-device = 'cpu' if torch.cuda.is_available() else 'cpu'
-
 
 def train(epoch, model, loaders, optimizer, loss_fcn, config):
     model.train()
 
     loss_list = []
-    predictions = []
-    truths = []
+    # predictions = []
+    # truths = []
     batches = []
     # TODO write custom dataloader
     # Since data relies on other data in the same set, use multiple loaders with their own batches
@@ -59,13 +56,13 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
         optimizer.step()
         y_pred_detach = y_pred.detach()
         y_detach = y.detach()
-        predictions.append(y_pred_detach.tolist())
-        truths.append(y_detach.tolist())
+        # predictions.append(y_pred_detach.tolist())
+        # truths.append(y_detach.tolist())
 
         # Store losses for epoch
         loss_list.append(loss.cpu().item())
-    predictions = numpy.concatenate(predictions)
-    truths = numpy.concatenate(truths)
+    # predictions = numpy.concatenate(predictions)
+    # truths = numpy.concatenate(truths)
     # metrics = utils.metrics(predictions, truths)
 
     return loss_list
@@ -112,12 +109,12 @@ def test(epoch, model, dataset, loss_fcn, config):
         y = y[6:]
         # y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
-        y_pred = model(X.float(), dataset.dataset.prediction_steps).cpu().detach()
+        y_pred = model(X.float(), dataset.dataset.prediction_steps)
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
-        predictions.append(y_pred.numpy())
-        truths.append(y.numpy())
+        predictions.append(y_pred.cpu().detach().numpy())
+        truths.append(y.cpu().detach().numpy())
     predictions = numpy.concatenate(predictions)
     truths = numpy.concatenate(truths)
     # print(epoch)
@@ -226,7 +223,7 @@ def train_mode(config):
             epochs_low_loss_diff = 0
         # If train converging and test not improving
         # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
-        if epochs_low_loss_diff > 5 and last_test_loss > loss_train:
+        if epochs_low_loss_diff > 5 and loss_test > last_test_loss:
             epochs_low_loss_diff = 0
             if config.curriculum is True and curriculum_epoch_num > min_epochs:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
