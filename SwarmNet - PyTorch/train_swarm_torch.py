@@ -1,6 +1,7 @@
 import json
 import multiprocessing
 import os
+import random
 import time
 
 import numpy
@@ -25,35 +26,44 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
     loss_list = []
     predictions = []
     truths = []
-
+    batches = []
+    # TODO write custom dataloader
+    # Since data relies on other data in the same set, use multiple loaders with their own batches
     for loader in loaders:
-        for batch, (X, y) in enumerate(loader):
-            if X.shape[0] < 7:
-                continue
-            optimizer.zero_grad()
-            X = X.to(device)
-            y = y[6:]
-            y = y.to(device)
+        batch_set = list(loader)
+        # Merge all batches into on set of batches, each batch only containing samples from one dataset
+        batches.extend(batch_set)
+    # Shuffle batches
+    random.shuffle(batches)
+    for batch in batches:
+        X = batch[0]
+        y = batch[1]
+        if X.shape[0] < 7:
+            continue
+        optimizer.zero_grad()
+        X = X.to(device)
+        y = y[6:]
+        y = y.to(device)
 
-            # Forward pass
-            y_pred = model(X.float(), loader.dataset.prediction_steps)
-            test = y_pred.tolist()
-            test2 = y.float().tolist()
-            loss = loss_fcn(y_pred.float(), y.float())
-            # truth_list = y_pred.tolist()
-            # if batch % 10 == 0:
-            #     print(loss)
+        # Forward pass
+        y_pred = model(X.float(), loader.dataset.prediction_steps)
+        test = y_pred.tolist()
+        test2 = y.float().tolist()
+        loss = loss_fcn(y_pred.float(), y.float())
+        # truth_list = y_pred.tolist()
+        # if batch % 10 == 0:
+        #     print(loss)
 
-            # Backward pass
-            loss.backward()
-            optimizer.step()
-            y_pred_detach = y_pred.detach()
-            y_detach = y.detach()
-            predictions.append(y_pred_detach.tolist())
-            truths.append(y_detach.tolist())
+        # Backward pass
+        loss.backward()
+        optimizer.step()
+        y_pred_detach = y_pred.detach()
+        y_detach = y.detach()
+        predictions.append(y_pred_detach.tolist())
+        truths.append(y_detach.tolist())
 
-            # Store losses for epoch
-            loss_list.append(loss.cpu().item())
+        # Store losses for epoch
+        loss_list.append(loss.cpu().item())
     predictions = numpy.concatenate(predictions)
     truths = numpy.concatenate(truths)
     # metrics = utils.metrics(predictions, truths)
@@ -61,6 +71,7 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
     return loss_list
 
 
+@torch.no_grad()
 def validate(epoch, model, dataset, optimizer, loss_fcn, config):
     model.eval()
     loss_list = []
@@ -87,6 +98,7 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
     return loss_list
 
 
+@torch.no_grad()
 def test(epoch, model, dataset, loss_fcn, config):
     model.eval()
     losses = []
@@ -171,7 +183,7 @@ def train_mode(config):
     model_path = config.model_save_path
     epochs_low_loss_diff = 0
     last_val_loss = 999999
-    last_test_loss = 0
+    last_test_loss = 999999
     min_epochs = 10
     curriculum_epoch_num = 0
 
@@ -212,9 +224,9 @@ def train_mode(config):
             epochs_low_loss_diff += 1
         else:
             epochs_low_loss_diff = 0
-        # If converging and not improving
+        # If train converging and test not improving
         # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
-        if epochs_low_loss_diff > 5 and last_val_loss > loss_train:
+        if epochs_low_loss_diff > 5 and last_test_loss > loss_train:
             epochs_low_loss_diff = 0
             if config.curriculum is True and curriculum_epoch_num > min_epochs:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
@@ -223,6 +235,8 @@ def train_mode(config):
                 if model.predictions_trained_to < config.max_curric_steps:
                     train_sets, test_set, train_loaders, test_loader, validation_loaders = \
                         update_curriculum(train_sets, test_set, config, num_workers)
+                    # TODO Start from model with lowest test MSE
+                    # model = retrieve_model(model_path)
                     model.predictions_trained_to += 1
                     print("Training step: " + str(model.predictions_trained_to))
                     model.lowest_mse_this_horizon = 999999
@@ -230,6 +244,7 @@ def train_mode(config):
                     print("MAX CURRICULUM REACHED. CONVERGENCE LIKELY. CONSIDER STOPPING")
 
         last_val_loss = loss_train
+        last_test_loss = loss_test
 
         # val_loss_diff = abs(loss_validate - last_val_loss)
         # last_val_loss = loss_validate
@@ -257,9 +272,8 @@ def test_mode(config):
     predictions = numpy.swapaxes(predictions, 0, 1)
     truths = numpy.swapaxes(truths, 0, 1)
     print(numpy.mean(loss_test))
-    predictions_json = json.dumps(predictions.tolist())
     with open('predictions.json', 'w') as outfile:
-        json.dump(predictions_json, outfile)
+        json.dump(predictions.tolist(), outfile)
 
 
 def update_curriculum(train_sets, test_set, config, num_workers):
