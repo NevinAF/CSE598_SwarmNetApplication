@@ -199,7 +199,6 @@ def train_mode(config):
         loss_train = train(epoch, model, batches, optimizer, loss_fcn, loader.dataset.prediction_steps)
         loss_train = numpy.mean(loss_train)
         print(loss_train)
-        loss_diff = abs(loss_train - last_val_loss)
         # print("diff:")
         # print(loss_diff)
         # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
@@ -212,6 +211,8 @@ def train_mode(config):
         print(predictions[0][0])
         print(truths[0][0])
         print(loss_test)
+        # Validation convergence
+        loss_diff = abs(loss_test - last_test_loss)
         time_end = time.time()
         time_taken = time_end - time_start
         print(time_taken)
