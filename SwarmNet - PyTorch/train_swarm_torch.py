@@ -175,7 +175,8 @@ def train_mode(config):
     # Initialize the loss
     loss_fcn = retrieve_loss(config.loss_name)
     model_path = config.model_save_path
-    epochs_low_loss_diff = 0
+    # epochs_low_loss_diff = 0
+    epochs_not_improved = 0
     last_val_loss = 999999
     last_test_loss = 999999
     min_epochs = config.min_epochs_per_curric
@@ -224,14 +225,17 @@ def train_mode(config):
             torch.save(model, model_path)
             model_checkpoint = model.state_dict()
             # plotVis(test_set.data, predictions, truths)
-        if loss_diff <= 0.001:
-            epochs_low_loss_diff += 1
-        else:
-            epochs_low_loss_diff = 0
+        # if loss_diff <= 0.0005:
+        #     epochs_low_loss_diff += 1
+        # else:
+        #     epochs_low_loss_diff = 0
         # If train converging and test not improving
-        # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
-        if epochs_low_loss_diff > 5 and loss_test > last_test_loss:
-            epochs_low_loss_diff = 0
+        if loss_test >= last_test_loss:
+            epochs_not_improved += 1
+        # TODO define tolerance and delta
+        # if epochs_low_loss_diff > 5 and loss_test > last_test_loss:
+        if epochs_not_improved > 5:
+            epochs_not_improved = 0
             if config.curriculum is True and curriculum_epoch_num > min_epochs:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
                 curriculum_epoch_num = 0
