@@ -9,13 +9,12 @@ def start(model_path):
 
 
 @torch.no_grad()
-def control(last_steps, model, predict_steps, predict_state_length):
+def control(last_steps, model, predict_steps):
     device = 'cpu'
     last_steps = numpy.array(last_steps)
     last_steps = numpy.swapaxes(last_steps, 0, 1)
     if last_steps.shape[1] >= 7:
-        # TODO extend to include radius or environmental context
-        last_steps = last_steps[:, :, 0:predict_state_length]
+        last_steps = last_steps[:, :, :]
         last_steps = torch.tensor(last_steps)
         last_steps = last_steps.to(device)
         control_vel = model.forward(last_steps.float(), predict_steps)
