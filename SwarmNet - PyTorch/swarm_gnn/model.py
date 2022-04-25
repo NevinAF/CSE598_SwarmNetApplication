@@ -12,7 +12,7 @@ def retrieve_model(path):
 
 
 class SwarmNet(nn.Module):
-    def __init__(self, agent_state_vector_length):
+    def __init__(self, agent_state_vector_length, predict_state_length):
         super(SwarmNet, self).__init__()
         # state vector, num output filters, kernel size, groups= state vector
         self.conv_layer1 = nn.Conv1d(agent_state_vector_length, 32, kernel_size=3, groups=1)
@@ -21,10 +21,11 @@ class SwarmNet(nn.Module):
         self.edge_state_mlp = nn.Linear(32 * 2, 32)
         self.edge_agg_mlp = nn.Linear(32, 32)
         self.node_updater_mlp = nn.Linear(32 * 2, 32)
-        self.node_decoder_mlp = nn.Linear(32, agent_state_vector_length)
+        self.node_decoder_mlp = nn.Linear(32, predict_state_length)
         self.relu = nn.ReLU()
         self.scaler = None
         self.predictions_trained_to = 1
+        self.predict_state_length = predict_state_length
         self.lowest_mse_this_horizon = 999999999999
 
     def conv_1d(self, x, predict_step):
@@ -81,7 +82,10 @@ class SwarmNet(nn.Module):
             original_states = original[6:, :, :]
         else:
             original_states = original[:, :, 6, :]
-        decoded_steps = torch.add(original_states, decoded_states)
+        # Add predicted change to original state
+        decoded_steps = torch.add(original_states[:, :, :self.predict_state_length], decoded_states)
+        # Concatenate additional information not being predicted for next steps of predictions
+        decoded_steps = torch.concat([decoded_steps, original_states[:, :, self.predict_state_length:]], axis=2)
         return decoded_steps
 
     def forward(self, x, predict_steps):

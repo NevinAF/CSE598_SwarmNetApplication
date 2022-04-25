@@ -7,6 +7,7 @@ class ExperimentConfig:
         config = yaml.safe_load(open(config_file, 'r'))
         self.prediction_steps = config["general"]["prediction_steps"]
         self.test_seg_length = config["general"]["test_seg_length"]
+        self.predict_state_length = config["general"]["predict_state_length"]
 
         # Location of train dataset
         self.train_paths = config["train"]["data_paths"]

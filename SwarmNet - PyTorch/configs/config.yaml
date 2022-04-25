@@ -1,6 +1,7 @@
 general:
-  prediction_steps: 150
+  prediction_steps: 1
   test_seg_length: 500
+  predict_state_length: 6
 
 train:
   n_epochs: 20000000
@@ -37,7 +38,7 @@ model:
   save_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model.pkl'
   save_strategy: ""
   # Train model or test existing model
-  mode: "test"
+  mode: "train"
   # Create new model for training or train existing model
   load_train: False
   load_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model_context_10.pkl'

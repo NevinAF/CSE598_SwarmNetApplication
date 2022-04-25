@@ -40,7 +40,7 @@ def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps):
         # new_y = y.tolist()
 
         # Forward pass
-        y_pred = model(X.float(), prediction_steps)
+        y_pred = model(X.float(), prediction_steps)[:, :, :, :model.predict_state_length]
         # test = y_pred.tolist()
         # test2 = y.float().tolist()
         loss = loss_fcn(y_pred.float(), y.float())
@@ -106,7 +106,7 @@ def test(epoch, model, dataset, loss_fcn, config):
         y = y[6:]
         # y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
-        y_pred = model(X.float(), dataset.dataset.prediction_steps)
+        y_pred = model(X.float(), dataset.dataset.prediction_steps)[:, :, :, :model.predict_state_length]
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
@@ -133,7 +133,7 @@ def train_mode(config):
         # Initialize the dataset
         test_set = retrieve_test_set(config, scaler=None, predict_steps=config.prediction_steps)
         train_sets = retrieve_train_sets(config.train_paths, config, scaler=None, predict_steps=config.prediction_steps)
-        model = SwarmNet(train_sets[0].state_length)
+        model = SwarmNet(train_sets[0].state_length, config.predict_state_length)
     elif config.model_load_path is not None:
         model = retrieve_model(config.model_load_path)
         if config.curriculum is True:
@@ -224,7 +224,7 @@ def train_mode(config):
             torch.save(model, model_path)
             model_checkpoint = model.state_dict()
             # plotVis(test_set.data, predictions, truths)
-        if loss_diff <= 0.0075:
+        if loss_diff <= 0.001:
             epochs_low_loss_diff += 1
         else:
             epochs_low_loss_diff = 0
@@ -297,7 +297,7 @@ def update_curriculum(train_sets, test_set, config, num_workers):
         train_set.data_x, train_set.data_y, train_set.state_length = \
             preprocess_predict_steps(train_set.original_data, False,
                                      train_set.prediction_steps,
-                                     config.truth_available, config.test_seg_length)
+                                     config.truth_available, config.test_seg_length, config.predict_state_length)
         train_set.X = torch.tensor(train_set.data_x)
         train_set.y = torch.tensor(train_set.data_y)
         # Validation loader
@@ -319,7 +319,7 @@ def update_curriculum(train_sets, test_set, config, num_workers):
     test_set.data_x, test_set.data_y, test_set.state_length = \
         preprocess_predict_steps(test_set.original_data, True,
                                  test_set.prediction_steps,
-                                 config.truth_available, config.test_seg_length)
+                                 config.truth_available, config.test_seg_length, config.predict_state_length)
     test_set.X = torch.tensor(test_set.data_x)
     test_set.y = torch.tensor(test_set.data_y)
 
