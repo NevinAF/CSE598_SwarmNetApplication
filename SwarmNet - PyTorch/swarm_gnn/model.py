@@ -22,6 +22,7 @@ class SwarmNet(nn.Module):
         self.edge_agg_mlp = nn.Linear(32, 32)
         self.node_updater_mlp = nn.Linear(32 * 2, 32)
         self.node_decoder_mlp = nn.Linear(32, predict_state_length)
+        # self.node_decoder_mlp.requires_grad_(False)
         self.relu = nn.ReLU()
         self.scaler = None
         self.predictions_trained_to = 1
