@@ -34,14 +34,14 @@ def preprocess_csv(data):
 
 def preprocess_json(data):
     data = numpy.array(data)
-    # TODO temporarily ignoring environmental context and fitting to exact environment
-    data = data[:, :, 0:6]
+    # TODO extend to include radius or environmental context
+    # data = data[:, :, :]
 
     return data
 
 
-def preprocess_predict_steps(data, is_test_data, steps, truth_available, test_length):
-    if is_test_data is True:
+def preprocess_predict_steps(data, is_test_data, steps, truth_available, test_length, predict_state_length):
+    if is_test_data:
         test_length = min(test_length, data.shape[1])
         data = data[:, :test_length, ]
     if truth_available:
@@ -50,9 +50,10 @@ def preprocess_predict_steps(data, is_test_data, steps, truth_available, test_le
         # Shape = [agent, condensed time-step, prediction step, state-vector]
         # Don't want to predict on time-steps where truth no longer available
         data_x = data[:, 0:truth_ends_at - 1, :]
-        data_y = numpy.zeros([data_x.shape[0], data_x.shape[1], steps, data.shape[2]])
+        # Only care about specified values for prediction
+        data_y = numpy.zeros([data_x.shape[0], data_x.shape[1], steps, predict_state_length])
         for i in range(0, steps):
-            data_y[:, 6:, i, :] = data[:, 7 + i:truth_ends_at + i, :]
+            data_y[:, 6:, i, :] = data[:, 7 + i:truth_ends_at + i, :predict_state_length]
         data_x = numpy.swapaxes(data_x, 0, 1)
         # Shape [step, agent, predicted step, state] e.g. [0][1][0][0] is the 1-step x prediction for agent 1 at \
         #   time-step 0 (6)

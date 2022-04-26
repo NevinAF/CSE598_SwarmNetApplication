@@ -16,39 +16,33 @@ from swarm_gnn.preprocessing import preprocess_predict_steps
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-# TODO testing
-device = 'cpu' if torch.cuda.is_available() else 'cpu'
 
-
-def train(epoch, model, loaders, optimizer, loss_fcn, config):
+def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps):
     model.train()
 
     loss_list = []
-    predictions = []
-    truths = []
-    batches = []
+    # predictions = []
+    # truths = []
+    # batches = []
     # TODO write custom dataloader
     # Since data relies on other data in the same set, use multiple loaders with their own batches
-    for loader in loaders:
-        batch_set = list(loader)
-        # Merge all batches into on set of batches, each batch only containing samples from one dataset
-        batches.extend(batch_set)
-    # Shuffle batches
-    random.shuffle(batches)
     for batch in batches:
         X = batch[0]
         y = batch[1]
         if X.shape[0] < 7:
             continue
+        # original_y = y.tolist()
         optimizer.zero_grad()
         X = X.to(device)
         y = y[6:]
         y = y.to(device)
+        # original_x = X.tolist()
+        # new_y = y.tolist()
 
         # Forward pass
-        y_pred = model(X.float(), loader.dataset.prediction_steps)
-        test = y_pred.tolist()
-        test2 = y.float().tolist()
+        y_pred = model(X.float(), prediction_steps)[:, :, :, :model.predict_state_length]
+        # test = y_pred.tolist()
+        # test2 = y.float().tolist()
         loss = loss_fcn(y_pred.float(), y.float())
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
@@ -57,15 +51,15 @@ def train(epoch, model, loaders, optimizer, loss_fcn, config):
         # Backward pass
         loss.backward()
         optimizer.step()
-        y_pred_detach = y_pred.detach()
-        y_detach = y.detach()
-        predictions.append(y_pred_detach.tolist())
-        truths.append(y_detach.tolist())
+        # y_pred_detach = y_pred.detach()
+        # y_detach = y.detach()
+        # predictions.append(y_pred_detach.tolist())
+        # truths.append(y_detach.tolist())
 
         # Store losses for epoch
         loss_list.append(loss.cpu().item())
-    predictions = numpy.concatenate(predictions)
-    truths = numpy.concatenate(truths)
+    # predictions = numpy.concatenate(predictions)
+    # truths = numpy.concatenate(truths)
     # metrics = utils.metrics(predictions, truths)
 
     return loss_list
@@ -112,12 +106,12 @@ def test(epoch, model, dataset, loss_fcn, config):
         y = y[6:]
         # y = torch.tensor(y.tolist()[6:])
         y = y.to(device)
-        y_pred = model(X.float(), dataset.dataset.prediction_steps).cpu().detach()
+        y_pred = model(X.float(), dataset.dataset.prediction_steps)[:, :, :, :model.predict_state_length]
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
             losses.append(loss.cpu().item())
-        predictions.append(y_pred.numpy())
-        truths.append(y.numpy())
+        predictions.append(y_pred.cpu().detach().numpy())
+        truths.append(y.cpu().detach().numpy())
     predictions = numpy.concatenate(predictions)
     truths = numpy.concatenate(truths)
     # print(epoch)
@@ -139,13 +133,13 @@ def train_mode(config):
         # Initialize the dataset
         test_set = retrieve_test_set(config, scaler=None, predict_steps=config.prediction_steps)
         train_sets = retrieve_train_sets(config.train_paths, config, scaler=None, predict_steps=config.prediction_steps)
-        model = SwarmNet(train_sets[0].state_length)
+        model = SwarmNet(train_sets[0].state_length, config.predict_state_length)
     elif config.model_load_path is not None:
         model = retrieve_model(config.model_load_path)
         if config.curriculum is True:
             # Initialize the dataset
             test_set = retrieve_test_set(config, scaler=None, predict_steps=model.predictions_trained_to)
-            train_sets = retrieve_train_sets(config.train_paths, scaler=None,
+            train_sets = retrieve_train_sets(config.train_paths, config, scaler=None,
                                              predict_steps=model.predictions_trained_to)
 
     else:
@@ -181,11 +175,20 @@ def train_mode(config):
     # Initialize the loss
     loss_fcn = retrieve_loss(config.loss_name)
     model_path = config.model_save_path
-    epochs_low_loss_diff = 0
+    # epochs_low_loss_diff = 0
+    epochs_not_improved = 0
     last_val_loss = 999999
     last_test_loss = 999999
-    min_epochs = 10
+    min_epochs = config.min_epochs_per_curric
     curriculum_epoch_num = 0
+    batches = []
+    for loader in train_loaders:
+        batch_set = list(loader)
+        # Merge all batches into on set of batches, each batch only containing samples from one dataset
+        batches.extend(batch_set)
+    # Shuffle batches
+    random.shuffle(batches)
+    model_checkpoint = model.state_dict()
 
     # Epoch Training loop
     for epoch in range(config.epochs):
@@ -194,10 +197,9 @@ def train_mode(config):
         time_start = time.time()
         print(epoch)
         # Train for one epoch
-        loss_train = train(epoch, model, train_loaders, optimizer, loss_fcn, config)
+        loss_train = train(epoch, model, batches, optimizer, loss_fcn, loader.dataset.prediction_steps)
         loss_train = numpy.mean(loss_train)
         print(loss_train)
-        loss_diff = abs(loss_train - last_val_loss)
         # print("diff:")
         # print(loss_diff)
         # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
@@ -210,6 +212,9 @@ def train_mode(config):
         print(predictions[0][0])
         print(truths[0][0])
         print(loss_test)
+        # Validation convergence
+        loss_diff = abs(loss_test - last_test_loss)
+        print("diff: " + str(loss_diff))
         time_end = time.time()
         time_taken = time_end - time_start
         print(time_taken)
@@ -219,22 +224,43 @@ def train_mode(config):
             lowest_mse = loss_test
             model.lowest_mse_this_horizon = lowest_mse
             torch.save(model, model_path)
-            # plotVis(test_set.data, predictions, truths)
-        if loss_diff <= 0.0075:
-            epochs_low_loss_diff += 1
+            model_checkpoint = model.state_dict()
+            # Do not consider insignificant improvements for updating curriculum
+            if loss_diff <= 0.0002:
+                epochs_not_improved += 1
+            else:
+                epochs_not_improved = 0
         else:
-            epochs_low_loss_diff = 0
+            epochs_not_improved += 1
+            # plotVis(test_set.data, predictions, truths)
+        # if loss_diff <= 0.0005:
+        #     epochs_low_loss_diff += 1
+        # else:
+        #     epochs_low_loss_diff = 0
         # If train converging and test not improving
-        # TODO better curriculum update criteria. Arbitrary epochs and convergence? Increase num required epochs?
-        if epochs_low_loss_diff > 5 and last_test_loss > loss_train:
-            epochs_low_loss_diff = 0
+        # if loss_test >= last_test_loss or loss_diff <= 0.0002:
+        #     epochs_not_improved += 1
+        # else:
+        #     epochs_not_improved = 0
+        # TODO define tolerance and delta
+        # if epochs_low_loss_diff > 5 and loss_test > last_test_loss:
+        if epochs_not_improved > 5:
+            epochs_not_improved = 0
             if config.curriculum is True and curriculum_epoch_num > min_epochs:
                 print("--------------------------UPDATING CURRICULUM--------------------------")
                 curriculum_epoch_num = 0
                 # if epoch > 0 and epoch % 10 == 0 and config.prediction_steps < 10:
                 if model.predictions_trained_to < config.max_curric_steps:
+                    model.load_state_dict(model_checkpoint)
                     train_sets, test_set, train_loaders, test_loader, validation_loaders = \
                         update_curriculum(train_sets, test_set, config, num_workers)
+                    batches = []
+                    for loader in train_loaders:
+                        batch_set = list(loader)
+                        # Merge all batches into on set of batches, each batch only containing samples from one dataset
+                        batches.extend(batch_set)
+                    # Shuffle batches
+                    random.shuffle(batches)
                     # TODO Start from model with lowest test MSE
                     # model = retrieve_model(model_path)
                     model.predictions_trained_to += 1
@@ -285,7 +311,7 @@ def update_curriculum(train_sets, test_set, config, num_workers):
         train_set.data_x, train_set.data_y, train_set.state_length = \
             preprocess_predict_steps(train_set.original_data, False,
                                      train_set.prediction_steps,
-                                     config.truth_available, config.test_seg_length)
+                                     config.truth_available, config.test_seg_length, config.predict_state_length)
         train_set.X = torch.tensor(train_set.data_x)
         train_set.y = torch.tensor(train_set.data_y)
         # Validation loader
@@ -307,7 +333,7 @@ def update_curriculum(train_sets, test_set, config, num_workers):
     test_set.data_x, test_set.data_y, test_set.state_length = \
         preprocess_predict_steps(test_set.original_data, True,
                                  test_set.prediction_steps,
-                                 config.truth_available, config.test_seg_length)
+                                 config.truth_available, config.test_seg_length, config.predict_state_length)
     test_set.X = torch.tensor(test_set.data_x)
     test_set.y = torch.tensor(test_set.data_y)
 

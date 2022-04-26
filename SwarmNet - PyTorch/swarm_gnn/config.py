@@ -7,6 +7,7 @@ class ExperimentConfig:
         config = yaml.safe_load(open(config_file, 'r'))
         self.prediction_steps = config["general"]["prediction_steps"]
         self.test_seg_length = config["general"]["test_seg_length"]
+        self.predict_state_length = config["general"]["predict_state_length"]
 
         # Location of train dataset
         self.train_paths = config["train"]["data_paths"]
@@ -18,6 +19,7 @@ class ExperimentConfig:
         self.add_noise_train = config["train"]["add_noise"]
         self.curriculum = config["train"]["curriculum"]
         self.max_curric_steps = config["train"]["max_curric_steps"]
+        self.min_epochs_per_curric = config['train']['min_epochs_per_curric']
 
         # Location of test data
         self.test_path = config["test"]["data_path"]
