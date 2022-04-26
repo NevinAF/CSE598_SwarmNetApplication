@@ -139,7 +139,7 @@ def train_mode(config):
         if config.curriculum is True:
             # Initialize the dataset
             test_set = retrieve_test_set(config, scaler=None, predict_steps=model.predictions_trained_to)
-            train_sets = retrieve_train_sets(config.train_paths, scaler=None,
+            train_sets = retrieve_train_sets(config.train_paths, config, scaler=None,
                                              predict_steps=model.predictions_trained_to)
 
     else:
@@ -214,6 +214,7 @@ def train_mode(config):
         print(loss_test)
         # Validation convergence
         loss_diff = abs(loss_test - last_test_loss)
+        print("diff: " + str(loss_diff))
         time_end = time.time()
         time_taken = time_end - time_start
         print(time_taken)
@@ -224,14 +225,23 @@ def train_mode(config):
             model.lowest_mse_this_horizon = lowest_mse
             torch.save(model, model_path)
             model_checkpoint = model.state_dict()
+            # Do not consider insignificant improvements for updating curriculum
+            if loss_diff <= 0.0002:
+                epochs_not_improved += 1
+            else:
+                epochs_not_improved = 0
+        else:
+            epochs_not_improved += 1
             # plotVis(test_set.data, predictions, truths)
         # if loss_diff <= 0.0005:
         #     epochs_low_loss_diff += 1
         # else:
         #     epochs_low_loss_diff = 0
         # If train converging and test not improving
-        if loss_test >= last_test_loss:
-            epochs_not_improved += 1
+        # if loss_test >= last_test_loss or loss_diff <= 0.0002:
+        #     epochs_not_improved += 1
+        # else:
+        #     epochs_not_improved = 0
         # TODO define tolerance and delta
         # if epochs_low_loss_diff > 5 and loss_test > last_test_loss:
         if epochs_not_improved > 5:
