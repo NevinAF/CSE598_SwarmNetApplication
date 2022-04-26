@@ -44,9 +44,9 @@ def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps, config):
         y_pred = model(X.float(), prediction_steps)[:, :, :, :model.predict_state_length]
         # test = y_pred.tolist()
         # test2 = y.float().tolist()
-        loss = loss_fcn(y_pred, y.float())
+        loss = loss_fcn(y_pred.float(), y.float())
         if config.mask_loss is True:
-            loss = torch.where(y != 0, loss.double(), float(0))
+            loss = torch.where(y.double() != 0, loss.double(), float(0))
         loss = loss.mean()
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
