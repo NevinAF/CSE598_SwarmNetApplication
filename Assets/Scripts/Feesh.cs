@@ -11,7 +11,7 @@ public class Feesh : MonoBehaviour
 
 
 	Flock thisFlock; //The Flock object/class this feesh belongs to
-	Collider feeshCollider;
+	SphereCollider feeshCollider;
 	int nearbyCount = 0;
 
 	public List<float[]> timesteps;
@@ -43,7 +43,7 @@ public class Feesh : MonoBehaviour
 	// Start is called before the first frame update
 	void Start()
 	{
-		feeshCollider = GetComponent<Collider>();
+		feeshCollider = GetComponent<SphereCollider>();
 	}
 
 	public int NearbyCount
@@ -71,7 +71,12 @@ public class Feesh : MonoBehaviour
 	{
 		if (thisFlock.obstaclesAsNodes)
 		{
-			return Get7PointTimestep(transform.position, velocity, feeshCollider.bounds.extents.magnitude);
+			if (thisFlock.UsePolarPos)
+			{
+				return Get7PointTimestep(new PVector(transform.position).AsVector3(), velocity, 0);
+			}
+			else
+				return Get7PointTimestep(transform.position, velocity, feeshCollider.radius);
 		}
 
 		Vector3 pos = transform.position;
@@ -215,7 +220,9 @@ public class Feesh : MonoBehaviour
 			);
 		}
 
-		public static PVector AsVector3(Vector3 vector)
+
+
+		public static PVector AsPVector(Vector3 vector)
 		{
 			return new PVector()
 			{
@@ -223,6 +230,13 @@ public class Feesh : MonoBehaviour
 				phi = vector.y,
 				r = vector.z
 			};
+		}
+
+		public Vector3 AsVector3()
+		{
+			return new Vector3(
+				theta, phi, r
+			);
 		}
 	}
 }

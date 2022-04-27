@@ -61,12 +61,13 @@ public class SelectStringWindow : EditorWindow
 			numPredictedSteps: steps
 		);
 
-		CreatePlot.PlotMatrix(preditions, $"Plot (m: {model}, d: {data})", fromVel: plotVelocity);
+		CreatePlot.PlotMatrix(preditions, $"Plot (m: {model}, d: {data})", fromVel: plotVelocity, posAsPolar: posAsPolar);
 	}
 
 	public string[] data_options;
 	public string[] model_options;
 	public bool plotVelocity;
+	public bool posAsPolar;
 	public int steps = 10;
 
 	Editor editor;

@@ -24,6 +24,9 @@ public class Flock : MonoBehaviour
 	[Header("Other")]
 
 	public bool obstaclesAsNodes = false;
+	public bool UsePolarPos = false;
+	public bool UseRadiusFlag = false;
+
 	public int cap_interval = 12;
 	
 	public Transform camfollow;
@@ -74,6 +77,9 @@ public class Flock : MonoBehaviour
 	Feesh newLeader;
 	public LayerMask ObsticleLayer;
 	public LayerMask FishLayer;
+
+	public bool RandRotateObstacles = true;
+	public Transform Obstacletransform = null;
 
 	float squareMaxVelocity;
 	float squareNeighborRadius;
@@ -130,6 +136,13 @@ public class Flock : MonoBehaviour
 				transform //With this class as the parent
 			);
 			newLeader.InitializeFlock(this);
+		}
+
+		if (RandRotateObstacles)
+		{
+			Debug.Assert(Obstacletransform);
+
+			Obstacletransform.rotation = Quaternion.AngleAxis(UnityEngine.Random.value * 360f, Vector3.up);
 		}
 
 		for (int i = 0; i < flockCount; i++)
@@ -196,11 +209,11 @@ public class Flock : MonoBehaviour
 					GameObject p0;
 					if (PosPref && VelPref)
 					{
-						p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: PosPref, fromVel: false);
-						GameObject p1 = CreatePlot.PlotMatrix(controlValues, "PreditionsVel", prefab: VelPref, fromVel: true);
+						p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: PosPref, fromVel: false, posAsPolar: UsePolarPos);
+						GameObject p1 = CreatePlot.PlotMatrix(controlValues, "PreditionsVel", prefab: VelPref, fromVel: true, posAsPolar: UsePolarPos);
 						p1.transform.parent = p0.transform;
 					}
-					else p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: (PosPref == null) ? VelPref : PosPref, fromVel: VelPref != null);
+					else p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: (PosPref == null) ? VelPref : PosPref, fromVel: VelPref != null, posAsPolar: UsePolarPos);
 
 					if (p0)
 					{
@@ -208,6 +221,7 @@ public class Flock : MonoBehaviour
 						plot = p0;
 					}
 				}
+				else if (plot) Destroy(plot);
 			}
 		}
 
@@ -252,7 +266,11 @@ public class Flock : MonoBehaviour
 
 		if (obstaclesAsNodes && (int_count == cap_interval))
 			for (int i = 0; i < obstacles.Count; i++)
-				AddTimestep(ref obstacleTimesteps[i], Get7PointTimestep(obstacles[i].bounds.center, Vector3.zero, obstacles[i].radius));
+				AddTimestep(ref obstacleTimesteps[i], 
+					(UsePolarPos) ?
+						Get7PointTimestep(obstacles[i].bounds.center, Vector3.zero, obstacles[i].radius) :
+						Get7PointTimestep(new PVector(obstacles[i].bounds.center).AsVector3(), Vector3.zero, 1)
+				);
 		//if (newLeader != null)
 		//{
 		//	newLeader.Move(nearbyObstacleColliders, newLeader.transform.forward);

@@ -69,7 +69,7 @@ public class CreatePlot : EditorWindow
 		PlotMatrix(data, filedata.filename, (sort == 0) ? MaxAgents : Maxtimesteps, sort, filedata.lineprefab);
 	}
 
-	public static GameObject PlotMatrix(float[][][] data, string plotname = "New Plot", int maxplot = int.MaxValue, int sort = 0, GameObject prefab = null, bool fromVel = false)
+	public static GameObject PlotMatrix(float[][][] data, string plotname = "New Plot", int maxplot = int.MaxValue, int sort = 0, GameObject prefab = null, bool fromVel = false, bool posAsPolar = false)
 	{
 		GameObject plot_go = new GameObject("Plot: " + plotname);
 		plot_go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
@@ -111,11 +111,18 @@ public class CreatePlot : EditorWindow
 				);
 
 				if (j == 0 || !fromVel)
-					pos = new Vector3(
-						data[i][j][0],
-						data[i][j][1],
-						data[i][j][2]
-					);
+					if (posAsPolar)
+						pos = new Vector3(
+							data[i][j][0],
+							data[i][j][1],
+							data[i][j][2]
+						);
+					else
+						pos = Feesh.PVector.GetVector3(
+							data[i][j][0],
+							data[i][j][1],
+							data[i][j][2]
+						);
 				else
 					pos += dir * Time.fixedDeltaTime * 2;
 
