@@ -60,114 +60,82 @@ public class CreatePlot : EditorWindow
 		int sort = (int)sort_type;
 		float[][][] data = null;
 
-		try
-		{
-			string json = File.ReadAllText(file);
-			if (filedata.inQuotes) json = json.Substring(1, json.Length - 2);
-			
-			if (filedata.fileFormat == FilePlotData.FileFormat.NodeTimeSate)
-				data = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][]>(json);
-			else
-			{
-				float[][][][] temp;
-				temp = Newtonsoft.Json.JsonConvert.DeserializeObject<float[][][][]>(json);
-
-				data = new float[temp.Length][][];
-
-				if (filedata.fileFormat == FilePlotData.FileFormat.NodeCondTimeState)
-				{
-					for (int i = 0; i < temp.Length; i++)
-					{
-						data[i] = new float[temp[i].Length][];
-						for (int j = 0; j < temp[i].Length; j++)
-						{
-							data[i][j] = new float[temp[i][j][0].Length];
-							for (int k = 0; k < temp[i][j][0].Length; k++)
-							{
-								data[i][j][k] = temp[i][j][0][k];
-							}
-						}
-					}
-				}
-				else
-				{
-					for (int i = 0; i < temp.Length; i++)
-					{
-						data[i] = new float[temp[i].Length][];
-						string s = "";
-						for (int j = 0; j < temp[i][condensedIndex].Length; j++)
-						{
-							s += temp[i][condensedIndex][j].Length + "|";
-							data[i][j] = new float[temp[i][condensedIndex][j].Length];
-							for (int k = 0; k < temp[i][condensedIndex][j].Length; k++)
-							{
-								data[i][j][k] = temp[i][condensedIndex][j][k];
-							}
-						}
-					}
-				}
-			}
-
-			if (data == null) throw new Exception();
-		}
-		catch (Exception e)
-		{
-			Debug.Log(file);
-			Debug.LogError(e.Message + "\n" + e.StackTrace);
-			return;
-		}
+		string json = File.ReadAllText(file);
+		data = SwarmNetAPI.ParseJsonData(json, filedata.fileFormat, filedata.inQuotes, condensedIndex);
 
 		// DEBUG THE DATA ARRAY!
 		// File.WriteAllText(Application.dataPath + "/debug.json", Newtonsoft.Json.JsonConvert.SerializeObject(data, Newtonsoft.Json.Formatting.Indented));
 
-		GameObject plot_go = new GameObject("Plot: " + filedata.filename);
+		PlotMatrix(data, filedata.filename, (sort == 0) ? MaxAgents : Maxtimesteps, sort, filedata.lineprefab);
+	}
+
+	public static GameObject PlotMatrix(float[][][] data, string plotname = "New Plot", int maxplot = int.MaxValue, int sort = 0, GameObject prefab = null, bool fromVel = false)
+	{
+		GameObject plot_go = new GameObject("Plot: " + plotname);
 		plot_go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
 
 		if (sort == 0)
 		{
-			for (int i = 0; i < data.Length && i < MaxAgents; i++)
+			for (int i = 0; i < data.Length && i < maxplot; i++)
 			{
 				new GameObject("Agent " + i).transform.parent = plot_go.transform;
 			}
 		}
 		else
 		{
-			for (int j = 0; j < data[0].Length && j < Maxtimesteps; j++)
+			for (int j = 0; j < data[0].Length && j < maxplot; j++)
 			{
 				new GameObject("Timestep " + j).transform.parent = plot_go.transform;
 			}
 		}
-		
+
 
 		Transform iparent = null;
-		for (int i = 0; i < data.Length && i < MaxAgents; i++)
+		Vector3 pos = Vector3.zero;
+		for (int i = 0; i < data.Length && i < maxplot; i++)
 		{
 			if (data[i] == null) continue;
 
 			if (sort == 0) iparent = plot_go.transform.GetChild(i);
 
-			for (int j = 0; j < data[i].Length && j < Maxtimesteps; j++)
+			for (int j = 0; j < data[i].Length && j < maxplot; j++)
 			{
 				if (data[i][j] == null) continue;
 
 				if (sort == 1) iparent = plot_go.transform.GetChild(j);
 
-				Vector3 pos = new Vector3(
-					data[i][j][0],
-					data[i][j][1],
-					data[i][j][2]
-				);
 				Vector3 dir = Feesh.PVector.GetVector3(
 					data[i][j][3],
 					data[i][j][4],
 					data[i][j][5]
 				);
 
-				GameObject go = PrefabUtility.InstantiatePrefab(filedata.lineprefab, iparent) as GameObject;
+				if (j == 0 || !fromVel)
+					pos = new Vector3(
+						data[i][j][0],
+						data[i][j][1],
+						data[i][j][2]
+					);
+				else
+					pos += dir * Time.fixedDeltaTime * 2;
+
+				GameObject go;
+
+				if (prefab == null)
+				{
+					go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+					go.transform.parent = iparent;
+					go.transform.localScale = Vector3.one * 0.05f;
+				}
+				else {
+					go = PrefabUtility.InstantiatePrefab(prefab, iparent) as GameObject;
+				}
 				go.name = "A" + i + " T" + j;
 				go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(dir, Vector3.up));
 			}
 		}
+
+		return plot_go;
 	}
 
 	public static class JsonArrayReader

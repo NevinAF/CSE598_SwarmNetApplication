@@ -89,7 +89,45 @@ MonoBehaviour:
       colorSpace: 0
       flipFinalOutput: 0
   m_AudioInputSettings:
-    preserveAudio: 1
+    preserveAudio: 0
+  _accumulationSettings:
+    rid: 7873472536047779840
+  references:
+    version: 2
+    RefIds:
+    - rid: 7873472536047779840
+      type: {class: AccumulationSettings, ns: , asm: Unity.Recorder.Editor}
+      data:
+        captureAccumulation: 0
+        samples: 1
+        shutterInterval: 1
+        shutterProfileType: 0
+        shutterProfileCurve:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+        shutterFullyOpen: 0.25
+        shutterBeginsClosing: 0.75
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0

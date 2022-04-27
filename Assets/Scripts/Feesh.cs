@@ -5,7 +5,7 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))] //Needed to see what's around the feesh
 public class Feesh : MonoBehaviour
 {
-	public const int OBSTACLE_COUNT = 4;
+	public const int OBSTACLE_COUNT = 0;
 
 	public static int int_count = 0;
 
@@ -14,33 +14,46 @@ public class Feesh : MonoBehaviour
 	Collider feeshCollider;
 	int nearbyCount = 0;
 
-	private List<float[]> timesteps;
+	public List<float[]> timesteps;
 
-	public Collider getFeeshCollider {
-		get {
+	public Collider getFeeshCollider
+	{
+		get
+		{
 			return feeshCollider;
 		}
 	}
-	public Flock getFlock {
-		get {
+	public Flock getFlock
+	{
+		get
+		{
 			return thisFlock;
 		}
 	}
-	public void InitializeFlock(Flock flock) {
+	public void InitializeFlock(Flock flock)
+	{
 		thisFlock = flock;
 	}
+
+	public void Awake()
+	{
+		timesteps = new List<float[]>();
+	}
+
 	// Start is called before the first frame update
 	void Start()
 	{
 		feeshCollider = GetComponent<Collider>();
-		timesteps = new List<float[]>();
 	}
 
-	public int NearbyCount { 
-		get {
+	public int NearbyCount
+	{
+		get
+		{
 			return nearbyCount;
-			}
-		set {
+		}
+		set
+		{
 			nearbyCount = value;
 		}
 	}
@@ -51,7 +64,7 @@ public class Feesh : MonoBehaviour
 		transform.position += velocity * Time.fixedDeltaTime; //Add our velocity to our current position (framerate independent)
 
 		if (int_count == thisFlock.cap_interval)
-			timesteps.Add(GetTimestepValues(nearbyObstacleColliders, velocity));
+			thisFlock.AddTimestep(ref timesteps, GetTimestepValues(nearbyObstacleColliders, velocity));
 	}
 
 	public float[] GetTimestepValues(Collider[] nearbyObstacleColliders, Vector3 velocity)
@@ -61,24 +74,27 @@ public class Feesh : MonoBehaviour
 			return Get7PointTimestep(transform.position, velocity, feeshCollider.bounds.extents.magnitude);
 		}
 
-		PVector[] result = new PVector[OBSTACLE_COUNT + 2];
+		Vector3 pos = transform.position;
+		PVector polarVel = new PVector(velocity);
 
-		//result[0] = new PVector(transform.position);
-		result[0] = PVector.AsVector3(transform.position);
-		result[1] = new PVector(velocity);
 
-		Array.Copy(GetObsticles(nearbyObstacleColliders), 0, result, 2, OBSTACLE_COUNT);
+		float[] result = new float[(OBSTACLE_COUNT + 2) * 3];
+		result[0] = pos.x;
+		result[1] = pos.y;
+		result[2] = pos.z;
+		result[3] = polarVel.theta;
+		result[4] = polarVel.phi;
+		result[5] = polarVel.r;
 
-		float[] timestep = new float[result.Length * 3];
-
-		for (int i = 0; i < result.Length; i++)
+		PVector[] pvecs = GetObsticles(nearbyObstacleColliders);
+		for (int i = 0; i < pvecs.Length; i++)
 		{
-			timestep[i * 3 + 0] = result[i].theta;
-			timestep[i * 3 + 1] = result[i].phi;
-			timestep[i * 3 + 2] = result[i].r;
+			result[i * 3 + 6] = pvecs[i].theta;
+			result[i * 3 + 7] = pvecs[i].phi;
+			result[i * 3 + 8] = pvecs[i].r;
 		}
 
-		return timestep;
+		return result;
 	}
 
 	public string TimeToString()
@@ -104,24 +120,44 @@ public class Feesh : MonoBehaviour
 		return result;
 	}
 
+	public float[][] TimeToMatrix()
+	{
+		return TimeToMatrix(timesteps);
+	}
+
+	public static float[][] TimeToMatrix(List<float[]> time)
+	{
+
+		return time.ToArray();
+	}
+
 	public PVector[] GetObsticles(Collider[] nearbyObstacleColliders, int count = OBSTACLE_COUNT)
 	{
-		Array.Sort(nearbyObstacleColliders,
-			(x, y) => (int)((Vector3.Distance(transform.position, x.bounds.center) - Vector3.Distance(transform.position, y.bounds.center)) * 100)
-		);
-
 		PVector[] result = new PVector[count];
-		for (int i = 0; i < count; i++)
+		if (nearbyObstacleColliders == null)
 		{
-			if (i >= nearbyObstacleColliders.Length)
+			for (int i = 0; i < result.Length; i++)
 			{
 				result[i] = new PVector();
-				continue;
 			}
-			else
+		}
+		else
+		{
+			Array.Sort(nearbyObstacleColliders,
+				(x, y) => (int)((Vector3.Distance(transform.position, x.bounds.center) - Vector3.Distance(transform.position, y.bounds.center)) * 100)
+			);
+			for (int i = 0; i < count; i++)
 			{
-				Vector3 diff = nearbyObstacleColliders[i].ClosestPoint(transform.position) - transform.position;
-				result[i] = new PVector(diff);
+				if (i >= nearbyObstacleColliders.Length)
+				{
+					result[i] = new PVector();
+					continue;
+				}
+				else
+				{
+					Vector3 diff = nearbyObstacleColliders[i].ClosestPoint(transform.position) - transform.position;
+					result[i] = new PVector(diff);
+				}
 			}
 		}
 
@@ -153,8 +189,8 @@ public class Feesh : MonoBehaviour
 			theta = Mathf.Acos(vector3.z / r);
 			phi = Mathf.Atan2(vector3.y, vector3.x);
 
-			if (theta == float.NaN) theta = 0.0f;
-			if (phi == float.NaN) phi = 0.0f;
+			if (float.IsNaN(theta)) theta = 0.0f;
+			if (float.IsNaN(phi)) phi = 0.0f;
 		}
 
 		public float theta;

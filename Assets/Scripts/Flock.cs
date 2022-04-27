@@ -11,10 +11,26 @@ public class Flock : MonoBehaviour
 	public static string JSON_PATH;
 
 	public int seed;
-	public GameObject predictPrefab;
-	public bool enablePrediction;
+
+	[Header("SwarmNet Control/Predictions")]
+	public bool OverrideBehaviorWithSwarmNet = true;
+	public int SwarmNet_PredictionLength = 0;
+	public int UpdatePredictionInterval = 0;
+	[Tooltip("Only the top item in this object is used")]
+	[SerializeField] private ScriptableList Model_pkl;
+	public GameObject VelPref;
+	public GameObject PosPref;
+
+	[Header("Other")]
+
 	public bool obstaclesAsNodes = false;
 	public int cap_interval = 12;
+	
+	public Transform camfollow;
+	public int MaxHistoryLength = 1 << 16;
+
+	[Tooltip("If unity should record and save the positions of the swarm while playing")]
+	public bool RecordSwarmData = false;
 
 	[Tooltip("Your general feesh flock agent.")]
 	public Feesh feeshPrefab;
@@ -64,8 +80,9 @@ public class Flock : MonoBehaviour
 	float squareAvoidanceRadius;
 	float squareObstacleAvoidanceRadius;
 
-	public float captureRate = 1f/5f;
+	public float captureRate = 1f / 5f;
 	private float counter = 0;
+	private int controllCounter = int.MaxValue;
 
 	public Feesh GetLeader
 	{
@@ -90,44 +107,13 @@ public class Flock : MonoBehaviour
 		}
 	}
 
-		
-	private float[][][] pTimeline;
-	private int timestep_counter;
-
 	void Start()
 	{
 		JSON_PATH = Application.dataPath + "/.." + "/SwarmData.json";
 
-		if (enablePrediction)
-		{
-			try
-			{
-				using (StreamReader r = new StreamReader(JSON_PATH))
-				{
-					string json = r.ReadToEnd();
-					pTimeline = JsonConvert.DeserializeObject<float[][][]>(json);
-				}
+		if (!RecordSwarmData) if (MaxHistoryLength > 100) Debug.LogWarning("MaxHistoryLength does not need to be this high for swarmNet to function");
 
-				if (pTimeline.Length != flockCount)
-				{
-					pTimeline = null;
-					Debug.LogError("Loaded timeline length is not equal to current swarm :(");
-				}
-			}
-			catch (Exception e)
-			{
-				pTimeline = null;
-				Debug.LogError(e.Message + "\n" + e.StackTrace);
-			}
-		}
-		else
-		{
-			pTimeline = null;
-		}
-
-		
-		timestep_counter = 5;
-
+		Debug.Assert((Model_pkl) || (SwarmNet_PredictionLength == 0 && !OverrideBehaviorWithSwarmNet));
 
 		UnityEngine.Random.InitState(seed);
 		squareMaxVelocity = maxVelocity * maxVelocity;
@@ -174,56 +160,108 @@ public class Flock : MonoBehaviour
 			for (int i = 0; i < obstacles.Count; i++)
 				obstacleTimesteps[i] = new List<float[]>();
 		}
+		offset = camfollow.position - feeshes[0].transform.position;
 	}
 
+	private float[][][] controlValues;
+
+	private Vector3 offset = Vector3.zero;
+	private GameObject plot;
 	void FixedUpdate()
 	{
+		if (camfollow)
+		{
+			camfollow.position = offset + feeshes[0].transform.position;
+		}
+
 		Feesh.int_count++;
 		if (Feesh.int_count > cap_interval)
 		{
 			Feesh.int_count = 0;
-			if (pTimeline != null && timestep_counter < pTimeline[0].Length)
+		}
+
+		if (controllCounter > UpdatePredictionInterval && (SwarmNet_PredictionLength > 0 || OverrideBehaviorWithSwarmNet) && feeshes[0].timesteps.Count >= MaxHistoryLength)
+		{
+			float[][][] times = TimeToMatrix();
+			controlValues = SwarmNetAPI.Control(times, Model_pkl.items[0], Mathf.Max(UpdatePredictionInterval + 1, SwarmNet_PredictionLength));
+
+			if (controlValues != null)
 			{
-				for (int i = 0; i < pTimeline.Length; i++)
+				controllCounter = 0;
+
+				Debug.Log($"[{controlValues.Length}, {controlValues[0].Length}, {controlValues[0][0].Length}]");
+
+				if (SwarmNet_PredictionLength > 0)
 				{
-					Vector3 pos = new Vector3(
-						pTimeline[i][timestep_counter][0],
-						pTimeline[i][timestep_counter][1],
-						pTimeline[i][timestep_counter][2]
-					);
-					Vector3 dir = PVector.GetVector3(
-						pTimeline[i][timestep_counter][3],
-						pTimeline[i][timestep_counter][4],
-						pTimeline[i][timestep_counter][5]
-					);
-					Instantiate(predictPrefab, pos, Quaternion.LookRotation(dir, Vector3.up), null);
+					GameObject p0;
+					if (PosPref && VelPref)
+					{
+						p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: PosPref, fromVel: false);
+						GameObject p1 = CreatePlot.PlotMatrix(controlValues, "PreditionsVel", prefab: VelPref, fromVel: true);
+						p1.transform.parent = p0.transform;
+					}
+					else p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: (PosPref == null) ? VelPref : PosPref, fromVel: VelPref != null);
+
+					if (p0)
+					{
+						if (plot) Destroy(plot);
+						plot = p0;
+					}
 				}
 			}
-			timestep_counter++;
 		}
 
-		for (int i = 0; i < feeshes.Count; i++)
-		{ //Oh god, a loop for for every single frame.
-			Feesh feesh = feeshes[i];
-			Collider[] nearbyObstacleColliders = Physics.OverlapSphere(feesh.transform.position, obstacleAvoidanceRadius, ObsticleLayer);
-
-			List<Transform> nearby = GetNearbyObjects(feesh, nearbyObstacleColliders); //List of everything near current feesh
-			Vector3 direction = behavior.CalculateDirection(feesh, nearby, this); //Calculate our direction
-			direction *= velocityMultiplier;
-			if (direction.sqrMagnitude > squareMaxVelocity)
-			{ //If greater than max velocity
-				direction = direction.normalized * maxVelocity; //Normalize (set it to 1) and set to max speed
+		if (OverrideBehaviorWithSwarmNet)
+		{
+			if (controlValues == null)
+			{
+				for (int i = 0; i < feeshes.Count; i++)
+					feeshes[i].Move(null, feeshes[i].transform.forward * 2f);
 			}
-			feesh.Move(nearbyObstacleColliders, direction); //Move in direction
+			else
+			{
+				for (int i = 0; i < feeshes.Count; i++)
+				{ //Oh god, a loop for for every single frame.
+					Feesh feesh = feeshes[i];
+					feesh.Move(null, PVector.GetVector3(
+						controlValues[i][controllCounter][3],
+						controlValues[i][controllCounter][4],
+						controlValues[i][controllCounter][5]
+					));
+				}
+			}
+		}	
+		else
+		{
+			for (int i = 0; i < feeshes.Count; i++)
+			{ //Oh god, a loop for for every single frame.
+				Feesh feesh = feeshes[i];
+				Collider[] nearbyObstacleColliders = Physics.OverlapSphere(feesh.transform.position, obstacleAvoidanceRadius, ObsticleLayer);
+
+				List<Transform> nearby = GetNearbyObjects(feesh, nearbyObstacleColliders); //List of everything near current feesh
+				Vector3 direction = behavior.CalculateDirection(feesh, nearby, this); //Calculate our direction
+				direction *= velocityMultiplier;
+				if (direction.sqrMagnitude > squareMaxVelocity)
+				{ //If greater than max velocity
+					direction = direction.normalized * maxVelocity; //Normalize (set it to 1) and set to max speed
+				}
+				feesh.Move(nearbyObstacleColliders, direction); //Move in direction
+			}
 		}
+
 
 		if (obstaclesAsNodes && (int_count == cap_interval))
 			for (int i = 0; i < obstacles.Count; i++)
-				obstacleTimesteps[i].Add(Get7PointTimestep(obstacles[i].bounds.center, Vector3.zero, obstacles[i].radius));
+				AddTimestep(ref obstacleTimesteps[i], Get7PointTimestep(obstacles[i].bounds.center, Vector3.zero, obstacles[i].radius));
 		//if (newLeader != null)
 		//{
 		//	newLeader.Move(nearbyObstacleColliders, newLeader.transform.forward);
 		//}
+
+		// Intcrement the counter for predictions and control
+		if (controlValues != null) 
+			if (int_count == cap_interval)
+				controllCounter++;
 	}
 
 	List<Transform> GetNearbyObjects(Feesh feesh, Collider[] nearbyObstacleColliders)
@@ -262,7 +300,7 @@ public class Flock : MonoBehaviour
 			}
 			else if (feesh.CompareTag(collider.tag))
 			{ //Otherwise filter by tag
-				//An agent with the same tag may belong to a different flock which wishes to stay within that class. Need to check 
+			  //An agent with the same tag may belong to a different flock which wishes to stay within that class. Need to check 
 				if (respectDiscriminators == false)
 				{  //If we ignore discriminators
 					nearFishCount++;
@@ -282,7 +320,8 @@ public class Flock : MonoBehaviour
 		feesh.NearbyCount = nearFishCount;
 		foreach (Collider collider in nearbyObstacleColliders)
 		{
-			if (collider.gameObject.layer.Equals(LayerMask.NameToLayer("Obstacle"))) { //If an obstalce
+			if (collider.gameObject.layer.Equals(LayerMask.NameToLayer("Obstacle")))
+			{ //If an obstalce
 				nearby.Add(collider.transform); //Add collider no matter what
 			}
 		}
@@ -295,8 +334,19 @@ public class Flock : MonoBehaviour
 
 	private void OnDestroy()
 	{
+		if (!RecordSwarmData) return;
+
+		string json = TimeToJson();
+		using (System.IO.StreamWriter writetext = new System.IO.StreamWriter(JSON_PATH, append: false))
+		{
+			writetext.WriteLine(json);
+		}
+	}
+
+	private string TimeToJson()
+	{
 		string json = "[\n";
-		
+
 		for (int i = 0; i < feeshes.Count; i++)
 		{
 			json += feeshes[i].TimeToString() + ",\n";
@@ -313,11 +363,37 @@ public class Flock : MonoBehaviour
 		json = json.Substring(0, json.Length - 2);
 		json += "\n]";
 
-		Debug.Log(json);
+		return json;
+	}
 
-		using (System.IO.StreamWriter writetext = new System.IO.StreamWriter(JSON_PATH, append: false))
+	private float[][][] TimeToMatrix()
+	{
+		List<float[][]> result = new List<float[][]>();
+
+		for (int i = 0; i < feeshes.Count; i++)
 		{
-			writetext.WriteLine(json);
+			result.Add(feeshes[i].TimeToMatrix());
 		}
+
+		if (obstaclesAsNodes)
+		{
+			for (int i = 0; i < obstacles.Count; i++)
+			{
+				result.Add(Feesh.TimeToMatrix(obstacleTimesteps[i]));
+			}
+		}
+
+		return result.ToArray();
+	}
+
+	/// <summary>
+	/// Adds a value to a list, and caps the list size to the max history length.
+	/// </summary>
+	public void AddTimestep(ref List<float[]> time, float[] vector)
+	{
+		time.Add(vector);
+
+		while (time.Count > MaxHistoryLength)
+			time.RemoveAt(0);
 	}
 }

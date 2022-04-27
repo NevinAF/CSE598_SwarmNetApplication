@@ -18,5 +18,4 @@ public class StayInArea : FlockingBehavior
 
         return centerOffeset * t * t;
     }
-   
 }
