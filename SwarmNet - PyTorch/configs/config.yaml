@@ -1,11 +1,11 @@
 general:
-  prediction_steps: 1
+  prediction_steps: 100
   test_seg_length: 500
   predict_state_length: 4
   mask_loss: True
 
 train:
-  n_epochs: 20000000
+  n_epochs: 200000000000000000000000000000000000000000000000000
   batch_size: 100
   data_paths:
     - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/samples/real_data_2.csv'
@@ -26,8 +26,8 @@ train:
   env_height: 1000
   add_noise: False
   sample_size: "max"
-  curriculum: False
-  max_curric_steps: 30
+  curriculum: True
+  max_curric_steps: 10
   min_epochs_per_curric: 10
 
 test:
@@ -42,7 +42,7 @@ model:
   save_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
   save_strategy: ""
   # Train model or test existing model
-  mode: "train"
+  mode: "test"
   # Create new model for training or train existing model
   load_train: False
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
+  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/real_model.pkl'
