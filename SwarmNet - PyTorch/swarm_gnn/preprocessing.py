@@ -11,25 +11,31 @@ import pandas
 
 def preprocess_csv(data):
     # TODO this is a test function using existing data. Throws away all frames without equal number of agents.
-    data_list = []
+    # data_list = []
     steps = data["Time"].unique()
     ids = data["ID"].unique()
+    steps_array = numpy.zeros([len(steps), len(ids), 5])
     for step in steps:
-        step_data = []
+        # step_data = []
         step_frame = data[(data["Time"] == step)]
         agent_ids = step_frame["ID"].unique()
-        if len(agent_ids) != len(ids):
-            continue
+        # if len(agent_ids) != len(ids):
+        #     continue
         for agent_id in agent_ids:
+            agent_index = numpy.where(ids == agent_id)
             agent_frame = step_frame[(step_frame["ID"] == agent_id)]
             agent_x = agent_frame["X Global"].unique()[0]
             agent_y = agent_frame["Y Global"].unique()[0]
             agent_r = agent_frame["Velocity R"].unique()[0]
             agent_theta = agent_frame["Velocity Theta"].unique()[0]
-            coord = [agent_x, agent_y, agent_r, agent_theta]
-            step_data.append(coord)
-        data_list.append(step_data)
-    data_list = numpy.array(data_list, dtype=float)
+            time_in_store = agent_frame["Time in Store"].unique()[0]
+            coord = [agent_x, agent_y, agent_r, agent_theta, time_in_store]
+            steps_array[step, agent_index] = coord
+        #     step_data.append(coord)
+        # data_list.append(step_data)
+    # data_list = numpy.array(data_list, dtype=float)
+    steps_array = numpy.swapaxes(steps_array, 0, 1)
+    return steps_array
 
 
 def preprocess_json(data):

@@ -1,15 +1,19 @@
 general:
   prediction_steps: 1
   test_seg_length: 500
-  predict_state_length: 6
+  predict_state_length: 4
+  mask_loss: True
 
 train:
   n_epochs: 20000000
   batch_size: 100
   data_paths:
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_50_obstacles_1_high_gran.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_50_obstacles_2_high_gran.json'
-    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_100_obstacles_1_high_gran.json'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/samples/real_data_2.csv'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/samples/real_data_3.csv'
+    - '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/samples/real_data_4.csv'
+#    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_50_obstacles_1_high_gran.json'
+#    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_50_obstacles_2_high_gran.json'
+#    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_100_obstacles_1_high_gran.json'
 #    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_10_1.json'
 #    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_10_2.json'
 #    - 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_30_1.json'
@@ -22,12 +26,12 @@ train:
   env_height: 1000
   add_noise: False
   sample_size: "max"
-  curriculum: True
+  curriculum: False
   max_curric_steps: 30
   min_epochs_per_curric: 10
 
 test:
-  data_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_10_obstacles_1_high_gran.json'
+  data_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/samples/real_data_2.csv'
   env_width: 2550
   env_height: 1650
   truth_available: True
@@ -35,10 +39,10 @@ test:
 
 model:
   name: "SwarmNet"
-  save_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model.pkl'
+  save_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'
   save_strategy: ""
   # Train model or test existing model
   mode: "train"
   # Create new model for training or train existing model
   load_train: False
-  load_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model_context_10.pkl'
+  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/model.pkl'

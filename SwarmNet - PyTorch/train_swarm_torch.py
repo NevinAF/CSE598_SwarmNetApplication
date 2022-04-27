@@ -13,11 +13,12 @@ from swarm_gnn import retrieve_model, retrieve_loss, utils, ExperimentConfig
 from swarm_gnn.dataset import SimulationDataset, retrieve_test_set, retrieve_train_sets
 from swarm_gnn.model import SwarmNet
 from swarm_gnn.preprocessing import preprocess_predict_steps
+from swarm_gnn.utils import plot
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps):
+def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps, config):
     model.train()
 
     loss_list = []
@@ -44,6 +45,9 @@ def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps):
         # test = y_pred.tolist()
         # test2 = y.float().tolist()
         loss = loss_fcn(y_pred.float(), y.float())
+        if config.mask_loss is True:
+            loss = torch.where(y.double() != 0, loss.double(), float(0))
+        loss = loss.mean()
         # truth_list = y_pred.tolist()
         # if batch % 10 == 0:
         #     print(loss)
@@ -82,6 +86,9 @@ def validate(epoch, model, dataset, optimizer, loss_fcn, config):
         y_pred = model(X.float(), dataset.dataset.prediction_steps)
         y_pred_detach = y_pred.cpu().detach()
         loss = loss_fcn(y_pred, y)
+        if config.mask_loss is True:
+            loss = torch.where(y.float() != 0, loss, 0.)
+        loss = loss.mean()
         predictions.append(y_pred_detach.numpy())
         truths.append(y.numpy())
 
@@ -109,6 +116,8 @@ def test(epoch, model, dataset, loss_fcn, config):
         y_pred = model(X.float(), dataset.dataset.prediction_steps)[:, :, :, :model.predict_state_length]
         if config.truth_available:
             loss = loss_fcn(y_pred, y)
+            mask = torch.where(y != 0, loss, 0.)
+            loss = mask.mean()
             losses.append(loss.cpu().item())
         predictions.append(y_pred.cpu().detach().numpy())
         truths.append(y.cpu().detach().numpy())
@@ -141,9 +150,13 @@ def train_mode(config):
             test_set = retrieve_test_set(config, scaler=None, predict_steps=model.predictions_trained_to)
             train_sets = retrieve_train_sets(config.train_paths, config, scaler=None,
                                              predict_steps=model.predictions_trained_to)
+        else:
+            test_set = retrieve_test_set(config, scaler=None, predict_steps=config.prediction_steps)
+            train_sets = retrieve_train_sets(config.train_paths, config, scaler=None,
+                                             predict_steps=config.prediction_steps)
 
     else:
-        print("Need model path if training existing model. Either povide path or set load_train to False")
+        print("Need model path if training existing model. Either provide path or set load_train to False")
         exit(0)
     model.scaler = train_sets[0].scaler
     model = model.to(device)
@@ -197,7 +210,7 @@ def train_mode(config):
         time_start = time.time()
         print(epoch)
         # Train for one epoch
-        loss_train = train(epoch, model, batches, optimizer, loss_fcn, loader.dataset.prediction_steps)
+        loss_train = train(epoch, model, batches, optimizer, loss_fcn, loader.dataset.prediction_steps, config)
         loss_train = numpy.mean(loss_train)
         print(loss_train)
         # print("diff:")
@@ -300,6 +313,7 @@ def test_mode(config):
     print(numpy.mean(loss_test))
     with open('predictions.json', 'w') as outfile:
         json.dump(predictions.tolist(), outfile)
+    # plot(truths, predictions)
 
 
 def update_curriculum(train_sets, test_set, config, num_workers):

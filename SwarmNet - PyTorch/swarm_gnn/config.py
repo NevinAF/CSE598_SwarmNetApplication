@@ -8,6 +8,7 @@ class ExperimentConfig:
         self.prediction_steps = config["general"]["prediction_steps"]
         self.test_seg_length = config["general"]["test_seg_length"]
         self.predict_state_length = config["general"]["predict_state_length"]
+        self.mask_loss = config["general"]["mask_loss"]
 
         # Location of train dataset
         self.train_paths = config["train"]["data_paths"]
