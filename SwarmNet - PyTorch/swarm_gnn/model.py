@@ -14,7 +14,6 @@ def retrieve_model(path):
 class SwarmNet(nn.Module):
     def __init__(self, agent_state_vector_length, predict_state_length):
         super(SwarmNet, self).__init__()
-        # state vector, num output filters, kernel size, groups= state vector
         self.conv_layer1 = nn.Conv1d(agent_state_vector_length, 32, kernel_size=3, groups=1)
         self.conv_layer2 = nn.Conv1d(32, 64, kernel_size=3, groups=1)
         self.conv_layer3 = nn.Conv1d(64, 32, kernel_size=3, groups=1)
@@ -114,23 +113,23 @@ class SwarmNet(nn.Module):
                             extend_pred_list[j, z, :, :] = test_list[j, z:z + 7, :]
                             extend_pred[j, z, :, :] = condensed_steps[j, z:z + 7, :]
                 else:
-                    extend_pred_list = test_list
+                    # extend_pred_list = test_list
                     extend_pred = condensed_steps
 
-                pre_roll = extend_pred.tolist()
+                # pre_roll = extend_pred.tolist()
                 # Roll window to left
                 extend_pred = torch.roll(extend_pred, -1, 2)
                 # Replace last step in window (first step before roll) with previous prediction
                 extend_pred[:, :, 6, :] = predict[:, :, :]
-                test2 = extend_pred.tolist()
+                # test2 = extend_pred.tolist()
                 condensed_steps = extend_pred
-                test3 = predict.tolist()
+                # test3 = predict.tolist()
             all_predict.append(predict)
 
         # Shape = [agent, condensed time-step, prediction step, state-vector]
         predict = torch.stack(all_predict, 2)
         # Shape = [condensed time-step, agent, prediction step, state-vector]
         predict = torch.swapaxes(predict, 0, 1)
-        test = predict.tolist()
+        # test = predict.tolist()
 
         return predict

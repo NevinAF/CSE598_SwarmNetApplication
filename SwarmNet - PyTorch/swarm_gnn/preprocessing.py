@@ -1,16 +1,10 @@
-# Readies a frame for training/testing
-import copy
-
 import numpy
-import pandas
 
 
-# Returns a data frame containing only data for specific agent IDs
 # from sklearn.preprocessing import MinMaxScaler
 
 
 def preprocess_csv(data):
-    # TODO this is a test function using existing data. Throws away all frames without equal number of agents.
     # data_list = []
     steps = data["Time"].unique()
     ids = data["ID"].unique()
@@ -40,8 +34,6 @@ def preprocess_csv(data):
 
 def preprocess_json(data):
     data = numpy.array(data)
-    # TODO extend to include radius or environmental context
-    # data = data[:, :, :]
 
     return data
 
@@ -54,10 +46,10 @@ def preprocess_predict_steps(data, is_test_data, steps, truth_available, test_le
         truth_ends_at = data.shape[1] - steps + 1
         # Ground truth starts at 7 time-steps # TODO should be variable based on num layers and kernel size
         # Shape = [agent, condensed time-step, prediction step, state-vector]
-        # Don't want to predict on time-steps where truth no longer available
         data_x = data[:, 0:truth_ends_at - 1, :]
         # Only care about specified values for prediction
         data_y = numpy.zeros([data_x.shape[0], data_x.shape[1], steps, predict_state_length])
+        # Don't want to predict on time-steps where truth no longer available
         for i in range(0, steps):
             data_y[:, 6:, i, :] = data[:, 7 + i:truth_ends_at + i, :predict_state_length]
         data_x = numpy.swapaxes(data_x, 0, 1)
