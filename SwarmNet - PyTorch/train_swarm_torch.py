@@ -22,9 +22,6 @@ def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps, config):
     model.train()
 
     loss_list = []
-    # predictions = []
-    # truths = []
-    # batches = []
     # TODO write custom dataloader
     # Since data relies on other data in the same set, use multiple loaders with their own batches
     for batch in batches:
@@ -32,39 +29,24 @@ def train(epoch, model, batches, optimizer, loss_fcn, prediction_steps, config):
         y = batch[1]
         if X.shape[0] < 7:
             continue
-        # original_y = y.tolist()
         optimizer.zero_grad()
         X = X.to(device)
         y = y[6:]
         y = y.to(device)
-        # original_x = X.tolist()
-        # new_y = y.tolist()
 
         # Forward pass
         y_pred = model(X.float(), prediction_steps)[:, :, :, :model.predict_state_length]
-        # test = y_pred.tolist()
-        # test2 = y.float().tolist()
         loss = loss_fcn(y_pred.float(), y.float())
         if config.mask_loss is True:
             loss = torch.where(y.double() != 0, loss.double(), float(0))
         loss = loss.mean()
-        # truth_list = y_pred.tolist()
-        # if batch % 10 == 0:
-        #     print(loss)
 
         # Backward pass
         loss.backward()
         optimizer.step()
-        # y_pred_detach = y_pred.detach()
-        # y_detach = y.detach()
-        # predictions.append(y_pred_detach.tolist())
-        # truths.append(y_detach.tolist())
 
         # Store losses for epoch
         loss_list.append(loss.cpu().item())
-    # predictions = numpy.concatenate(predictions)
-    # truths = numpy.concatenate(truths)
-    # metrics = utils.metrics(predictions, truths)
 
     return loss_list
 
@@ -182,7 +164,6 @@ def train_mode(config):
     # # Test loader
     test_loader = DataLoader(test_set, batch_size=config.batch_size, num_workers=num_workers)
 
-    optimizer_opts = {"lr": 1e-1, "betas": [0.9, 0.999], "eps": 1e-8, "weight_decay": 1e-5}
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     # Initialize the loss
@@ -190,7 +171,6 @@ def train_mode(config):
     model_path = config.model_save_path
     # epochs_low_loss_diff = 0
     epochs_not_improved = 0
-    last_val_loss = 999999
     last_test_loss = 999999
     min_epochs = config.min_epochs_per_curric
     curriculum_epoch_num = 0
@@ -213,12 +193,6 @@ def train_mode(config):
         loss_train = train(epoch, model, batches, optimizer, loss_fcn, loader.dataset.prediction_steps, config)
         loss_train = numpy.mean(loss_train)
         print(loss_train)
-        # print("diff:")
-        # print(loss_diff)
-        # loss_validate = validate(epoch, model, validation_loader, optimizer, loss_fcn, config)
-        # loss_validate = numpy.mean(loss_validate)
-        # print(loss_validate)
-        #
         # Test for
         loss_test, predictions, truths = test(epoch, model, test_loader, loss_fcn, config)
         loss_test = numpy.mean(loss_test)
@@ -245,16 +219,6 @@ def train_mode(config):
                 epochs_not_improved = 0
         else:
             epochs_not_improved += 1
-            # plotVis(test_set.data, predictions, truths)
-        # if loss_diff <= 0.0005:
-        #     epochs_low_loss_diff += 1
-        # else:
-        #     epochs_low_loss_diff = 0
-        # If train converging and test not improving
-        # if loss_test >= last_test_loss or loss_diff <= 0.0002:
-        #     epochs_not_improved += 1
-        # else:
-        #     epochs_not_improved = 0
         # TODO define tolerance and delta
         # if epochs_low_loss_diff > 5 and loss_test > last_test_loss:
         if epochs_not_improved > 5:
