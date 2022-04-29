@@ -31,7 +31,7 @@ train:
   sample_size: "max"
   curriculum: True
   max_curric_steps: 10
-  min_epochs_per_curric: 10
+  min_epochs_per_curric: 1
 
 test:
   data_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\SwarmData_Test_1.json'
@@ -47,5 +47,5 @@ model:
   # Train model or test existing model
   mode: "train"
   # Create new model for training or train existing model
-  load_train: False
-  load_path: '/Users/adam/Documents/PycharmProjects/CSE598_SwarmNetApplication/SwarmNet - PyTorch/models/real_model.pkl'
+  load_train: True
+  load_path: 'C:\Users\ahard_000\Documents\CSE598_SwarmNetApplication\SwarmNet - PyTorch\models\model_20_step_polar.pkl'
