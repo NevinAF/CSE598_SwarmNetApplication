@@ -209,11 +209,11 @@ public class Flock : MonoBehaviour
 					GameObject p0;
 					if (PosPref && VelPref)
 					{
-						p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: PosPref, fromVel: false, posAsPolar: UsePolarPos);
-						GameObject p1 = CreatePlot.PlotMatrix(controlValues, "PreditionsVel", prefab: VelPref, fromVel: true, posAsPolar: UsePolarPos);
+						p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: PosPref, fromVel: false, posAsPolar: UsePolarPos, maxplot: flockCount);
+						GameObject p1 = CreatePlot.PlotMatrix(controlValues, "PreditionsVel", prefab: VelPref, fromVel: true, posAsPolar: UsePolarPos, maxplot: flockCount);
 						p1.transform.parent = p0.transform;
 					}
-					else p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: (PosPref == null) ? VelPref : PosPref, fromVel: VelPref != null, posAsPolar: UsePolarPos);
+					else p0 = CreatePlot.PlotMatrix(controlValues, "PreditionsPos", prefab: (PosPref == null) ? VelPref : PosPref, fromVel: VelPref != null, posAsPolar: UsePolarPos, maxplot: flockCount);
 
 					if (p0)
 					{
@@ -230,7 +230,19 @@ public class Flock : MonoBehaviour
 			if (controlValues == null)
 			{
 				for (int i = 0; i < feeshes.Count; i++)
-					feeshes[i].Move(null, feeshes[i].transform.forward * 2f);
+				{ //Oh god, a loop for for every single frame.
+					Feesh feesh = feeshes[i];
+					Collider[] nearbyObstacleColliders = Physics.OverlapSphere(feesh.transform.position, obstacleAvoidanceRadius, ObsticleLayer);
+
+					List<Transform> nearby = GetNearbyObjects(feesh, nearbyObstacleColliders); //List of everything near current feesh
+					Vector3 direction = behavior.CalculateDirection(feesh, nearby, this); //Calculate our direction
+					direction *= velocityMultiplier;
+					if (direction.sqrMagnitude > squareMaxVelocity)
+					{ //If greater than max velocity
+						direction = direction.normalized * maxVelocity; //Normalize (set it to 1) and set to max speed
+					}
+					feesh.Move(nearbyObstacleColliders, direction); //Move in direction
+				}
 			}
 			else
 			{

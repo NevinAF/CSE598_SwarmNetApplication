@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: TestModels
   m_EditorClassIdentifier: Assembly-CSharp::ScriptableList
   items:
+  - model_20_step_polar.pkl
+  - model_10_step_polar.pkl
   - model_10_step_radius.pkl
   - model_12_step.pkl
   - model_experimental.pkl

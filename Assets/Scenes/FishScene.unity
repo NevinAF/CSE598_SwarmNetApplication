@@ -19059,7 +19059,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   m_LocalRotation: {x: 0.3288644, y: 0.39445415, z: -0.15366612, w: 0.84418064}
-  m_LocalPosition: {x: -5.416825, y: 7.049999, z: -2.7599983}
+  m_LocalPosition: {x: -17.49, y: 21.51, z: -12.86}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -19621,11 +19621,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   seed: 0
   OverrideBehaviorWithSwarmNet: 1
-  SwarmNet_PredictionLength: 150
+  SwarmNet_PredictionLength: 100
   UpdatePredictionInterval: 10
   Model_pkl: {fileID: 11400000, guid: b0806206581449b45a21b100287b2c27, type: 2}
-  VelPref: {fileID: 2170887475850209101, guid: 255076ef9dfef9f4ca97073c75b04ba2, type: 3}
-  PosPref: {fileID: 958977960411252558, guid: 437624f92b09ad24fbecb6f9fbe9534f, type: 3}
+  VelPref: {fileID: 3624004380875735220, guid: 3629b68f8a241da45a6650983014b5c5, type: 3}
+  PosPref: {fileID: 0}
   obstaclesAsNodes: 1
   UsePolarPos: 1
   UseRadiusFlag: 1
@@ -19636,7 +19636,7 @@ MonoBehaviour:
   feeshPrefab: {fileID: 6258335672438549072, guid: e9425086007b4484895c1f283295f16d, type: 3}
   feeshLeaderPrefab: {fileID: 0}
   behavior: {fileID: 11400000, guid: c170b3ce92faebd429fe80b9fef3a7fe, type: 2}
-  flockCount: 10
+  flockCount: 50
   velocityMultiplier: 1
   maxVelocity: 2.5
   neighborRadius: 3

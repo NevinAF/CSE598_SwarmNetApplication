@@ -39,6 +39,8 @@ public class CreatePlot : EditorWindow
 	}
 
 	public FilePlotData[] filedatas;
+	public bool fromVelocities;
+	public bool positionAsPolar;
 	public string root_filepath;
 	public SortType sort_type;
 	public int condensedIndex;
@@ -66,7 +68,7 @@ public class CreatePlot : EditorWindow
 		// DEBUG THE DATA ARRAY!
 		// File.WriteAllText(Application.dataPath + "/debug.json", Newtonsoft.Json.JsonConvert.SerializeObject(data, Newtonsoft.Json.Formatting.Indented));
 
-		PlotMatrix(data, filedata.filename, (sort == 0) ? MaxAgents : Maxtimesteps, sort, filedata.lineprefab);
+		PlotMatrix(data, filedata.filename, (sort == 0) ? MaxAgents : Maxtimesteps, sort, filedata.lineprefab, fromVelocities, positionAsPolar);
 	}
 
 	public static GameObject PlotMatrix(float[][][] data, string plotname = "New Plot", int maxplot = int.MaxValue, int sort = 0, GameObject prefab = null, bool fromVel = false, bool posAsPolar = false)
@@ -111,7 +113,7 @@ public class CreatePlot : EditorWindow
 				);
 
 				if (j == 0 || !fromVel)
-					if (posAsPolar)
+					if (!posAsPolar)
 						pos = new Vector3(
 							data[i][j][0],
 							data[i][j][1],
@@ -124,7 +126,7 @@ public class CreatePlot : EditorWindow
 							data[i][j][2]
 						);
 				else
-					pos += dir * Time.fixedDeltaTime * 2;
+					pos += dir * Time.fixedDeltaTime * 3;
 
 				GameObject go;
 
