@@ -116,6 +116,8 @@ def train_mode(config):
     val_loaders = []
     if device == 'cuda':
         num_workers = torch.cuda.device_count()
+        if num_workers == 1:
+            num_workers = 0
     else:
         num_workers = 0
 

@@ -62,7 +62,7 @@ class SwarmNet(nn.Module):
             condensed_steps, 2), num_nodes, dim=2)
         incoming_messages = torch.repeat_interleave(torch.unsqueeze(
             condensed_steps, 1), num_nodes, dim=1)
-        # Shape [Agent, incoming agent, concatenated state vectors]
+        # Shape [Condensed steps, agents, incoming agents, concatenated state vectors]
         node_msgs = torch.concat([incoming_messages, outgoing_messages], dim=-1)
         edges = self.edge_state_mlp(node_msgs)
         edges = self.relu(edges)
@@ -86,6 +86,10 @@ class SwarmNet(nn.Module):
         decoded_steps = torch.add(original_states[:, :, :self.predict_state_length], decoded_states)
         # Concatenate additional information not being predicted for next steps of predictions
         decoded_steps = torch.concat([decoded_steps, original_states[:, :, self.predict_state_length:]], axis=2)
+        # TODO temporarily not predicting obstacles (nodes 50+ for this dataset) Hard coding this is not good
+        decoded_steps[:, 50:, :] = original_states[:, 50:, :]
+        # decoded_steps_arr = numpy.array(decoded_steps.tolist())
+        # original_steps_arr = numpy.array(original.tolist())
         return decoded_steps
 
     def forward(self, x, predict_steps):
