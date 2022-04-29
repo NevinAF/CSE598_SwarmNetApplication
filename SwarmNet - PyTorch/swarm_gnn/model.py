@@ -86,8 +86,8 @@ class SwarmNet(nn.Module):
         decoded_steps = torch.add(original_states[:, :, :self.predict_state_length], decoded_states)
         # Concatenate additional information not being predicted for next steps of predictions
         decoded_steps = torch.concat([decoded_steps, original_states[:, :, self.predict_state_length:]], axis=2)
-        # TODO temporarily not predicting obstacles (nodes 50+ for this dataset) Hard coding this is not good
-        decoded_steps[:, 50:, :] = original_states[:, 50:, :]
+        # # TODO temporarily not predicting obstacles (nodes 50+ for this dataset) Hard coding this is not good
+        # decoded_steps[:, 50:, :] = original_states[:, 50:, :]
         # decoded_steps_arr = numpy.array(decoded_steps.tolist())
         # original_steps_arr = numpy.array(original.tolist())
         return decoded_steps
